@@ -285,14 +285,43 @@ async function demoLiveFeed() {
 }
 
 async function demoLiveOrderUpdate() {
+  // Not working for me
   console.log("\nDemonstrating Live Order Update:");
 
-  dhanFeed.liveOrderUpdate.connect();
-  console.log("Connected to live order updates");
+  try {
+    await dhanFeed.liveOrderUpdate.connect();
+    console.log("WebSocket connection established for live order updates");
 
-  // Keep the connection open for 30 seconds
-  await new Promise((resolve) => setTimeout(resolve, 30000));
-  dhanFeed.liveOrderUpdate.disconnect();
+    dhanFeed.liveOrderUpdate.on("orderUpdate", (update) => {
+      console.log("Received order update:", update);
+    });
+
+    dhanFeed.liveOrderUpdate.on("authenticated", () => {
+      console.log("Successfully authenticated with the order update service");
+    });
+
+    dhanFeed.liveOrderUpdate.on("authError", (error) => {
+      console.error("Authentication failed:", error.message);
+    });
+
+    dhanFeed.liveOrderUpdate.on("disconnected", ({ code, reason }) => {
+      console.log(`Disconnected: ${code} - ${reason}`);
+    });
+
+    dhanFeed.liveOrderUpdate.on("error", (error) => {
+      console.error("Live order update error:", error);
+    });
+
+    console.log("Listening for order updates...");
+
+    // Keep the connection open for 30 seconds
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  } catch (error) {
+    console.error("Error in live order update demo:", error);
+  } finally {
+    dhanFeed.liveOrderUpdate.disconnect();
+    console.log("Disconnected from live order updates");
+  }
 }
 
 async function runComprehensiveDemo() {
@@ -306,7 +335,7 @@ async function runComprehensiveDemo() {
     // await demoTradersControl();
     // await demoStatements();
     // await demoLiveFeed();
-    await demoLiveOrderUpdate();
+    // await demoLiveOrderUpdate();
   } catch (error) {
     console.error("Error in demo:", error);
   }

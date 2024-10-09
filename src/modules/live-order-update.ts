@@ -1,49 +1,47 @@
 import WebSocket from "ws";
+import { EventEmitter } from "events";
 import { LiveOrderUpdateConfig, LiveOrderUpdate } from "../types";
 
-export class LiveOrderUpdateManager {
+export class LiveOrderUpdateManager extends EventEmitter {
   private ws: WebSocket | null = null;
   private readonly config: LiveOrderUpdateConfig;
 
   constructor(config: LiveOrderUpdateConfig) {
+    super();
     this.config = config;
   }
 
-  connect(): void {
-    const url = `wss://api-order-update.dhan.co`;
-    this.ws = new WebSocket(url);
+  connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const url = `wss://api-order-update.dhan.co`;
+      this.ws = new WebSocket(url);
 
-    this.ws.on("open", () => {
-      console.log("WebSocket connection established");
-      this.sendAuthorizationMessage();
-      if (this.config.onConnect) {
-        this.config.onConnect();
-      }
-    });
+      this.ws.on("open", () => {
+        console.log("WebSocket connection established for order updates");
+        this.sendAuthorizationMessage();
+        resolve();
+      });
 
-    this.ws.on("message", (data: WebSocket.Data) => {
-      try {
-        const update = JSON.parse(data.toString()) as LiveOrderUpdate;
-        if (this.config.onOrderUpdate) {
-          this.config.onOrderUpdate(update);
+      this.ws.on("message", (data: WebSocket.Data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleMessage(message);
+        } catch (error) {
+          console.error("Error parsing order update message:", error);
+          this.emit("error", error);
         }
-      } catch (error) {
-        console.error("Error parsing order update:", error);
-      }
-    });
+      });
 
-    this.ws.on("close", (code: number, reason: string) => {
-      console.log(`WebSocket connection closed: ${code} - ${reason}`);
-      if (this.config.onDisconnect) {
-        this.config.onDisconnect(code, reason);
-      }
-    });
+      this.ws.on("close", (code: number, reason: string) => {
+        console.log(`WebSocket connection closed: ${code} - ${reason}`);
+        this.emit("disconnected", { code, reason });
+      });
 
-    this.ws.on("error", (error: Error) => {
-      console.error("WebSocket error:", error);
-      if (this.config.onError) {
-        this.config.onError(error);
-      }
+      this.ws.on("error", (error: Error) => {
+        console.error("WebSocket error:", error);
+        this.emit("error", error);
+        reject(error);
+      });
     });
   }
 
@@ -60,6 +58,27 @@ export class LiveOrderUpdateManager {
     };
 
     this.ws.send(JSON.stringify(authMessage));
+  }
+
+  private handleMessage(message: any): void {
+    if (message.Type === "order_alert") {
+      const update = message.Data as LiveOrderUpdate;
+      this.emit("orderUpdate", update);
+    } else if (message.Type === "auth_response") {
+      this.handleAuthResponse(message);
+    } else {
+      console.log("Received unknown message type:", message.Type);
+    }
+  }
+
+  private handleAuthResponse(message: any): void {
+    if (message.Status === "success") {
+      console.log("Authentication successful for order updates");
+      this.emit("authenticated");
+    } else {
+      console.error("Authentication failed for order updates:", message.Reason);
+      this.emit("authError", new Error(message.Reason));
+    }
   }
 
   disconnect(): void {
