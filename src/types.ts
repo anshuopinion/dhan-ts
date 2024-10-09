@@ -37,6 +37,15 @@ export enum ExchangeSegment {
   BSE_CURRENCY = 6,
   MCX_COMM = 7,
 }
+export enum ExchangeSegmentText {
+  NSE_EQ = "NSE_EQ",
+  NSE_FNO = "NSE_FNO",
+  NSE_CURRENCY = "NSE_CURRENCY",
+  BSE_EQ = "BSE_EQ",
+  BSE_FNO = "BSE_FNO",
+  BSE_CURRENCY = "BSE_CURRENCY",
+  MCX_COMM = "MCX_COMM",
+}
 
 export enum ProductType {
   CNC = "CNC",
@@ -254,7 +263,7 @@ export interface MarketFeedRequest {
 
 export interface HistoricalDataRequest {
   securityId: string;
-  exchangeSegment: ExchangeSegment;
+  exchangeSegment: ExchangeSegmentText;
   instrument: string;
   expiryCode: number;
   fromDate: string;
@@ -263,7 +272,7 @@ export interface HistoricalDataRequest {
 
 export interface IntradayDataRequest {
   securityId: string;
-  exchangeSegment: ExchangeSegment;
+  exchangeSegment: ExchangeSegmentText;
   instrument: string;
   interval: string;
   fromDate: string;
@@ -530,3 +539,16 @@ export interface LiveOrderUpdateConfig extends DhanConfig {
 }
 
 export type Instrument = [ExchangeSegment, string];
+
+export enum InstrumentToken {
+  INDEX = "INDEX",
+  FUTIDX = "FUTIDX",
+  OPTIDX = "OPTIDX",
+  EQUITY = "EQUITY",
+  FUTSTK = "FUTSTK",
+  OPTSTK = "OPTSTK",
+  FUTCOM = "FUTCOM",
+  OPTFUT = "OPTFUT",
+  FUTCUR = "FUTCUR",
+  OPTCUR = "OPTCUR",
+}

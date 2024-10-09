@@ -11,6 +11,8 @@ import {
   FeedRequestCode,
   Instrument,
   OrderFlag,
+  InstrumentToken,
+  ExchangeSegmentText,
 } from "../src/types";
 import dotenv from "dotenv";
 
@@ -124,19 +126,40 @@ async function demoMarketData() {
     NSE_EQ: [11536],
   };
 
-  // // Get LTP
-  // const ltp = await dhanClient.marketData.getLTP(marketFeedRequest);
-  // console.log("LTP:", ltp.data);
+  // Get LTP
+  const ltp = await dhanClient.marketData.getLTP(marketFeedRequest);
+  console.log("LTP:", ltp.data);
 
-  // // Get OHLC
-  // const ohlc = await dhanClient.marketData.getOHLC(marketFeedRequest);
-  // console.log("OHLC:", ohlc.data.NSE_EQ);
+  // Get OHLC
+  const ohlc = await dhanClient.marketData.getOHLC(marketFeedRequest);
+  console.log("OHLC:", ohlc.data.NSE_EQ);
 
   // Get Quote
-  // const quote = await dhanClient.marketData.getQuote(marketFeedRequest);
-  // console.log("Quote:", quote.data.NSE_EQ);
+  const quote = await dhanClient.marketData.getQuote(marketFeedRequest);
+  console.log("Quote:", quote.data.NSE_EQ);
 
-  // Get Historical Data
+  // Get Historical Data (Candle)
+
+  const historical = await dhanClient.marketData.getDailyHistoricalData({
+    securityId: "19913",
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: InstrumentToken.EQUITY,
+    toDate: "2024-10-04",
+    fromDate: "2024-09-01",
+    expiryCode: 0,
+  });
+  console.log("Historical Data:", historical);
+
+  // Get Intraday Data (Candle)
+  const intraday = await dhanClient.marketData.getIntradayHistoricalData({
+    securityId: "19913",
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: InstrumentToken.EQUITY,
+    interval: "1",
+    toDate: "2024-10-04",
+    fromDate: "2024-10-01",
+  });
+  console.log("Intraday Data:", intraday);
 }
 
 async function demoForeverOrders() {
