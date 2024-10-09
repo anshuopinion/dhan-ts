@@ -111,38 +111,36 @@ async function demoOrders() {
 }
 
 async function demoPortfolio() {
-  console.log("\nDemonstrating Portfolio API:");
-
+  // console.log("\nDemonstrating Portfolio API:");
   // Get holdings
-  const holdings = await dhanClient.portfolio.getHoldings();
-  console.log("Holdings:", holdings);
-
+  // const holdings = await dhanClient.portfolio.getHoldings();
+  // console.log("Holdings:", holdings);
   // Get positions
-  const positions = await dhanClient.portfolio.getPositions();
-  console.log("Positions:", positions);
+  // const positions = await dhanClient.portfolio.getPositions();
+  // console.log("Positions:", positions);
 }
 
 async function demoFunds() {
   console.log("\nDemonstrating Funds API:");
 
   // Get fund limits
-  const fundLimits = await dhanClient.funds.getFundLimit();
-  console.log("Fund limits:", fundLimits);
+  // const fundLimits = await dhanClient.funds.getFundLimit();
+  // console.log("Fund limits:", fundLimits);
 
   // Calculate margin
-  const marginRequest = {
-    dhanClientId: config.clientId,
-    exchangeSegment: ExchangeSegment.NSE_EQ,
-    transactionType: TransactionType.BUY,
-    quantity: 1,
-    productType: ProductType.CNC,
-    securityId: "1333", // HDFC Bank
-    price: 1500,
-  };
-  const marginCalculation = await dhanClient.funds.calculateMargin(
-    marginRequest
-  );
-  console.log("Margin calculation:", marginCalculation);
+  // const marginRequest = {
+  //   dhanClientId: config.clientId,
+  //   exchangeSegment: ExchangeSegment.NSE_EQ,
+  //   transactionType: TransactionType.BUY,
+  //   quantity: 1,
+  //   productType: ProductType.CNC,
+  //   securityId: "1333", // HDFC Bank
+  //   price: 1500,
+  // };
+  // const marginCalculation = await dhanClient.funds.calculateMargin(
+  //   marginRequest
+  // );
+  // console.log("Margin calculation:", marginCalculation);
 }
 
 async function demoEDIS() {
@@ -172,7 +170,7 @@ async function demoMarketData() {
   console.log("\nDemonstrating Market Data API:");
 
   const marketFeedRequest = {
-    NSE_EQ: [11536],
+    NSE_EQ: [9362],
   };
 
   // Get LTP
@@ -251,19 +249,21 @@ async function demoTradersControl() {
 async function demoStatements() {
   console.log("\nDemonstrating Statements API:");
 
+  // not working for me
+
   // Get ledger report
-  const ledgerReport = await dhanClient.statements.getLedgerReport(
-    "2023-01-01",
-    "2023-04-01"
-  );
-  console.log("Ledger report:", ledgerReport);
+  // const ledgerReport = await dhanClient.statements.getLedgerReport(
+  //   "2024-10-02",
+  //   "2024-10-09"
+  // );
+  // console.log("Ledger report:", ledgerReport);
 
   // Get trade history
-  const tradeHistory = await dhanClient.statements.getTradeHistory(
-    "2023-01-01",
-    "2023-04-01"
-  );
-  console.log("Trade history:", tradeHistory);
+  // const tradeHistory = await dhanClient.statements.getTradeHistory(
+  //   "2024-09-09",
+  //   "2024-10-02"
+  // );
+  // console.log("Trade history:", tradeHistory);
 }
 
 async function demoLiveFeed() {
@@ -272,7 +272,7 @@ async function demoLiveFeed() {
   await dhanFeed.liveFeed.connect();
   console.log("WebSocket connection established");
   const instruments: Instrument[] = [[ExchangeSegment.NSE_EQ, "7508"]]; // HDFC Bank
-  dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+  dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
   console.log("Subscribed to live feed");
 
   dhanFeed.liveFeed.on("data", (data) => {
@@ -297,7 +297,7 @@ async function demoLiveOrderUpdate() {
 
 async function runComprehensiveDemo() {
   try {
-    await demoOrders();
+    // await demoOrders();
     // await demoPortfolio();
     // await demoFunds();
     // await demoEDIS();
@@ -306,7 +306,7 @@ async function runComprehensiveDemo() {
     // await demoTradersControl();
     // await demoStatements();
     // await demoLiveFeed();
-    // await demoLiveOrderUpdate();
+    await demoLiveOrderUpdate();
   } catch (error) {
     console.error("Error in demo:", error);
   }
