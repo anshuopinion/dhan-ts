@@ -249,7 +249,7 @@ export interface EdisInquiryResponse {
 }
 
 export interface MarketFeedRequest {
-  [exchangeSegment: string]: string[];
+  [exchangeSegment: number]: number[];
 }
 
 export interface HistoricalDataRequest {
