@@ -9,14 +9,33 @@ export interface DhanConfig {
   clientId: string;
 }
 
+export enum OrderFlag {
+  SINGLE = "SINGLE",
+  OCO = "OCO",
+}
+
+export enum FeedRequestCode {
+  CONNECT = 11,
+  DISCONNECT = 12,
+  SUBSCRIBE_TICKER = 15,
+  UNSUBSCRIBE_TICKER = 16,
+  SUBSCRIBE_QUOTE = 17,
+  UNSUBSCRIBE_QUOTE = 18,
+  SUBSCRIBE_FULL = 21,
+  UNSUBSCRIBE_FULL = 22,
+}
+export enum KillSwitchStatus {
+  ACTIVATE = "ACTIVATE",
+  DEACTIVATE = "DEACTIVATE",
+}
 export enum ExchangeSegment {
-  NSE_EQ = "NSE_EQ",
-  NSE_FNO = "NSE_FNO",
-  NSE_CURRENCY = "NSE_CURRENCY",
-  BSE_EQ = "BSE_EQ",
-  BSE_FNO = "BSE_FNO",
-  BSE_CURRENCY = "BSE_CURRENCY",
-  MCX_COMM = "MCX_COMM",
+  NSE_EQ = 1,
+  NSE_FNO = 2,
+  NSE_CURRENCY = 3,
+  BSE_EQ = 4,
+  BSE_FNO = 5,
+  BSE_CURRENCY = 6,
+  MCX_COMM = 7,
 }
 
 export enum ProductType {
@@ -343,16 +362,12 @@ export type LiveFeedResponse =
   | OiDataResponse
   | PrevCloseResponse
   | MarketStatusResponse
-  | FullMarketDataResponse;
+  | FullMarketDataResponse
+  | MarketDepthResponse;
 
 export interface DisconnectionResponse {
   errorCode: number;
   reason: string;
-}
-
-export enum OrderFlag {
-  SINGLE = "SINGLE",
-  OCO = "OCO",
 }
 
 export interface ForeverOrderRequest {
@@ -403,11 +418,6 @@ export interface ModifyForeverOrderRequest {
   disclosedQuantity?: number;
   triggerPrice: number;
   validity: Validity;
-}
-
-export enum KillSwitchStatus {
-  ACTIVATE = "ACTIVATE",
-  DEACTIVATE = "DEACTIVATE",
 }
 
 export interface KillSwitchResponse {

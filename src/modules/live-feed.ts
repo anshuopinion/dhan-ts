@@ -3,14 +3,16 @@ import {
   DhanConfig,
   LiveFeedResponse,
   DisconnectionResponse,
-  MarketDepthResponse,
-  DepthLevel,
-  FullMarketDataResponse,
+  Instrument,
+  ExchangeSegment,
+  TickerResponse,
+  QuoteResponse,
   OiDataResponse,
   PrevCloseResponse,
   MarketStatusResponse,
-  QuoteResponse,
-  TickerResponse,
+  FullMarketDataResponse,
+  MarketDepthResponse,
+  DepthLevel,
 } from "../types";
 
 export class LiveFeed {
@@ -216,47 +218,36 @@ export class LiveFeed {
     this.emit("disconnected", disconnectionData);
   }
 
-  subscribe(instruments: [number, string][], subscriptionType: number) {
+  subscribe(instruments: Instrument[], requestCode: number) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("WebSocket is not connected");
     }
 
-    const packet = this.createSubscriptionPacket(instruments, subscriptionType);
-    this.ws.send(packet);
+    const packet = this.createSubscriptionPacket(instruments, requestCode);
+    this.ws.send(JSON.stringify(packet));
   }
 
-  unsubscribe(instruments: [number, string][], subscriptionType: number) {
+  unsubscribe(instruments: Instrument[]) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("WebSocket is not connected");
     }
 
-    const packet = this.createSubscriptionPacket(
-      instruments,
-      subscriptionType + 1
-    );
-    this.ws.send(packet);
+    const packet = this.createSubscriptionPacket(instruments, 15);
+    this.ws.send(JSON.stringify(packet));
   }
 
   private createSubscriptionPacket(
-    instruments: [number, string][],
-    subscriptionType: number
-  ): Buffer {
-    const header = Buffer.alloc(83);
-    header.writeUInt8(subscriptionType, 0);
-    header.writeUInt16LE(83 + 4 + instruments.length * 21, 1);
-    header.write(this.config.clientId, 6, "utf-8");
-
-    const numInstruments = Buffer.alloc(4);
-    numInstruments.writeInt32LE(instruments.length, 0);
-
-    const instrumentData = Buffer.alloc(instruments.length * 21);
-    instruments.forEach((instrument, index) => {
-      const offset = index * 21;
-      instrumentData.writeUInt8(instrument[0], offset);
-      instrumentData.write(instrument[1], offset + 1, "utf-8");
-    });
-
-    return Buffer.concat([header, numInstruments, instrumentData]);
+    instruments: Instrument[],
+    requestCode: number
+  ): object {
+    return {
+      RequestCode: requestCode,
+      InstrumentCount: instruments.length,
+      InstrumentList: instruments.map(([exchangeSegment, securityId]) => ({
+        ExchangeSegment: ExchangeSegment[exchangeSegment],
+        SecurityId: securityId,
+      })),
+    };
   }
 
   close() {
