@@ -109,7 +109,7 @@ export interface OrderRequest {
   dhanClientId: string;
   correlationId?: string;
   transactionType: TransactionType;
-  exchangeSegment: ExchangeSegment;
+  exchangeSegment: ExchangeSegmentText;
   productType: ProductType;
   orderType: OrderType;
   validity: Validity;

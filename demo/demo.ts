@@ -31,34 +31,83 @@ async function demoOrders() {
   console.log("\nDemonstrating Orders API:");
 
   // Place an order
-  const orderRequest = {
-    dhanClientId: config.clientId,
-    transactionType: TransactionType.BUY,
-    exchangeSegment: ExchangeSegment.NSE_EQ,
-    productType: ProductType.CNC,
-    orderType: OrderType.LIMIT,
-    validity: Validity.DAY,
-    securityId: "1333", // HDFC Bank
-    quantity: 1,
-    price: 1500,
-    disclosedQuantity: 0,
-    afterMarketOrder: false,
-  };
+  // const orderRequest = {
+  //   dhanClientId: config.clientId,
+  //   transactionType: TransactionType.BUY,
+  //   correlationId: "1234",
+  //   exchangeSegment: ExchangeSegmentText.NSE_EQ,
+  //   productType: ProductType.CNC,
+  //   orderType: OrderType.LIMIT,
+  //   validity: Validity.DAY,
+  //   securityId: "9362", // HDFC Bank
+  //   quantity: 1,
+  //   price: 311,
+  //   disclosedQuantity: 0,
+  //   afterMarketOrder: false,
+  // };
 
-  const placedOrder = await dhanClient.orders.placeOrder(orderRequest);
-  console.log("Placed order:", placedOrder);
+  // const placedOrder = await dhanClient.orders.placeOrder(orderRequest);
+  // console.log("Placed order:", placedOrder);
 
   // Get all orders
-  const allOrders = await dhanClient.orders.getOrders();
-  console.log("All orders:", allOrders);
+  // const allOrders = await dhanClient.orders.getOrders();
+  // console.log("All orders:", allOrders);
 
-  // Get order by ID
-  if (allOrders.length > 0) {
-    const orderById = await dhanClient.orders.getOrderById(
-      allOrders[0].orderId
-    );
-    console.log("Order by ID:", orderById);
-  }
+  // // Get order by ID
+  // if (allOrders.length > 0) {
+  //   const orderById = await dhanClient.orders.getOrderById(
+  //     allOrders[0].orderId
+  //   );
+  //   console.log("Order by ID:", orderById);
+  // }
+
+  // remove order
+
+  // if (allOrders.length > 0) {
+  //   const cancelOrder = await dhanClient.orders.cancelOrder(
+  //     allOrders[0].orderId
+  //   );
+  //   console.log("Order removed:", cancelOrder);
+  // }
+
+  // modifyOrder
+
+  // const orderModifyRequest = {
+  //   dhanClientId: config.clientId,
+  //   orderId: allOrders[0].orderId,
+  //   orderType: OrderType.LIMIT,
+  //   // legName: "",
+  //   quantity: 1,
+  //   price: 312,
+  //   disclosedQuantity: 0,
+  //   // triggerPrice: "",
+  //   validity: Validity.DAY,
+  // };
+
+  // if (allOrders.length > 0) {
+  //   const modifyOrder = await dhanClient.orders.modifyOrder(
+  //     allOrders[0].orderId,
+  //     orderModifyRequest
+  //   );
+  //   console.log("Order modified:", modifyOrder);
+  // }
+
+  // get order by external id
+  // const orderbyExternal = await dhanClient.orders.getOrderByCorrelationId(
+  //   "1234"
+  // );
+  // console.log("Order by external id:", orderbyExternal);
+
+  // get trades
+  // const trades = await dhanClient.orders.getTrades();
+  // console.log("Trades:", trades);
+
+  // get trades by order id
+
+  // const tradesByOrderId = await dhanClient.orders.getTradesByOrderId(
+  //   "4124100927065"
+  // );
+  // console.log("Trades by order id:", tradesByOrderId);
 }
 
 async function demoPortfolio() {
@@ -248,11 +297,11 @@ async function demoLiveOrderUpdate() {
 
 async function runComprehensiveDemo() {
   try {
-    // await demoOrders();
+    await demoOrders();
     // await demoPortfolio();
     // await demoFunds();
     // await demoEDIS();
-    await demoMarketData();
+    // await demoMarketData();
     // await demoForeverOrders();
     // await demoTradersControl();
     // await demoStatements();
