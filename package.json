@@ -1,9 +1,17 @@
 {
   "name": "dhan-ts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "TypeScript client for Dhan API v2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anshuopinion/dhan-ts.git"
+  },
+  "homepage": "https://github.com/anshuopinion/dhan-ts#readme",
+  "bugs": {
+    "url": "https://github.com/anshuopinion/dhan-ts/issues"
+  },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"

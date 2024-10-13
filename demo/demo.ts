@@ -13,6 +13,7 @@ import {
   OrderFlag,
   InstrumentToken,
   ExchangeSegmentText,
+  TimeInterval,
 } from "../src/types";
 import dotenv from "dotenv";
 
@@ -324,9 +325,22 @@ async function demoLiveOrderUpdate() {
   }
 }
 
+async function allTimeFrameCandles() {
+  const historical = await dhanClient.marketData.getProcessedCandleData({
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: InstrumentToken.EQUITY,
+    interval: TimeInterval.MONTH_1,
+    expiryCode: 0,
+    daysAgo: 2000,
+    securityId: "19913",
+  });
+
+  console.log("Historical Data:", historical);
+}
+
 async function runComprehensiveDemo() {
   try {
-    // await demoOrders();
+    await demoOrders();
     // await demoPortfolio();
     // await demoFunds();
     // await demoEDIS();
@@ -336,6 +350,7 @@ async function runComprehensiveDemo() {
     // await demoStatements();
     // await demoLiveFeed();
     // await demoLiveOrderUpdate();
+    await allTimeFrameCandles();
   } catch (error) {
     console.error("Error in demo:", error);
   }
