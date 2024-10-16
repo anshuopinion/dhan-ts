@@ -552,3 +552,26 @@ export enum InstrumentToken {
   FUTCUR = "FUTCUR",
   OPTCUR = "OPTCUR",
 }
+
+export enum TimeInterval {
+  MIN_1 = "1m",
+  MIN_2 = "2m",
+  MIN_3 = "3m",
+  MIN_4 = "4m",
+  MIN_5 = "5m",
+  MIN_10 = "10m",
+  MIN_15 = "15m",
+  MIN_30 = "30m",
+  MIN_45 = "45m",
+  MIN_60 = "60m",
+  MIN_120 = "120m",
+  MIN_180 = "180m",
+  MIN_240 = "240m",
+  DAY_1 = "1d",
+  WEEK_1 = "1w",
+  MONTH_1 = "1M",
+  MONTH_2 = "2M",
+  MONTH_3 = "3M",
+  MONTH_6 = "6M",
+  YEAR_1 = "1y",
+}
