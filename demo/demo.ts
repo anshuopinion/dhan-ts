@@ -326,12 +326,13 @@ async function demoLiveOrderUpdate() {
 }
 
 async function allTimeFrameCandles() {
+  // Combined all time frame candles
   const historical = await dhanClient.marketData.getProcessedCandleData({
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
     instrument: InstrumentToken.EQUITY,
-    interval: TimeInterval.MONTH_1,
+    interval: TimeInterval.MIN_120,
     expiryCode: 0,
-    daysAgo: 2000,
+    daysAgo: 2,
     securityId: "19913",
   });
 
@@ -340,7 +341,7 @@ async function allTimeFrameCandles() {
 
 async function runComprehensiveDemo() {
   try {
-    await demoOrders();
+    // await demoOrders();
     // await demoPortfolio();
     // await demoFunds();
     // await demoEDIS();

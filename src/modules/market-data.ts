@@ -68,7 +68,7 @@ export class MarketData {
       interval: TimeInterval;
       daysAgo?: number;
     }
-  ): Promise<Candle[]> {
+  ): Promise<HistoricalDataResponse> {
     const { interval, daysAgo = 60, ...baseRequest } = request;
     const toDate = new Date();
     const fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
@@ -97,6 +97,118 @@ export class MarketData {
     }
   }
 
+  private combineIntradayCandles(
+    data: HistoricalDataResponse,
+    desiredIntervalMinutes: number
+  ): HistoricalDataResponse {
+    const result: HistoricalDataResponse = {
+      open: [],
+      high: [],
+      low: [],
+      close: [],
+      volume: [],
+      timestamp: [],
+    };
+    const apiInterval = this.getApiInterval(data.timestamp);
+    const multiplier = Math.max(
+      1,
+      Math.floor(desiredIntervalMinutes / apiInterval)
+    );
+
+    for (let i = 0; i < data.timestamp.length; i += multiplier) {
+      const slice = {
+        open: data.open.slice(i, i + multiplier),
+        high: data.high.slice(i, i + multiplier),
+        low: data.low.slice(i, i + multiplier),
+        close: data.close.slice(i, i + multiplier),
+        volume: data.volume.slice(i, i + multiplier),
+        timestamp: data.timestamp.slice(i, i + multiplier),
+      };
+
+      result.open.push(slice.open[0]);
+      result.high.push(Math.max(...slice.high));
+      result.low.push(Math.min(...slice.low));
+      result.close.push(slice.close[slice.close.length - 1]);
+      result.volume.push(slice.volume.reduce((a, b) => a + b, 0));
+      result.timestamp.push(slice.timestamp[0]);
+    }
+
+    return result;
+  }
+
+  private combineDailyCandles(
+    data: HistoricalDataResponse,
+    multiplier: number,
+    interval: TimeInterval
+  ): HistoricalDataResponse {
+    const result: HistoricalDataResponse = {
+      open: [],
+      high: [],
+      low: [],
+      close: [],
+      volume: [],
+      timestamp: [],
+    };
+    let currentCandle: HistoricalDataResponse = {
+      open: [],
+      high: [],
+      low: [],
+      close: [],
+      volume: [],
+      timestamp: [],
+    };
+    let candleStartTimestamp = 0;
+
+    for (let i = 0; i < data.timestamp.length; i++) {
+      const timestamp = data.timestamp[i];
+      const date = new Date(timestamp * 1000);
+
+      if (!this.isValidTradingDay(date)) {
+        continue; // Skip weekends and holidays
+      }
+
+      if (
+        currentCandle.timestamp.length === 0 ||
+        this.shouldStartNewCandle(timestamp, candleStartTimestamp, interval)
+      ) {
+        if (currentCandle.timestamp.length > 0) {
+          result.open.push(currentCandle.open[0]);
+          result.high.push(Math.max(...currentCandle.high));
+          result.low.push(Math.min(...currentCandle.low));
+          result.close.push(
+            currentCandle.close[currentCandle.close.length - 1]
+          );
+          result.volume.push(currentCandle.volume.reduce((a, b) => a + b, 0));
+          result.timestamp.push(currentCandle.timestamp[0]);
+        }
+        currentCandle = {
+          open: [data.open[i]],
+          high: [data.high[i]],
+          low: [data.low[i]],
+          close: [data.close[i]],
+          volume: [data.volume[i]],
+          timestamp: [timestamp],
+        };
+        candleStartTimestamp = timestamp;
+      } else {
+        currentCandle.high.push(data.high[i]);
+        currentCandle.low.push(data.low[i]);
+        currentCandle.close[currentCandle.close.length - 1] = data.close[i];
+        currentCandle.volume.push(data.volume[i]);
+      }
+    }
+
+    if (currentCandle.timestamp.length > 0) {
+      result.open.push(currentCandle.open[0]);
+      result.high.push(Math.max(...currentCandle.high));
+      result.low.push(Math.min(...currentCandle.low));
+      result.close.push(currentCandle.close[currentCandle.close.length - 1]);
+      result.volume.push(currentCandle.volume.reduce((a, b) => a + b, 0));
+      result.timestamp.push(currentCandle.timestamp[0]);
+    }
+
+    return result;
+  }
   private getIntervalInfo(interval: TimeInterval): {
     baseInterval: number;
     multiplier: number;
@@ -122,88 +234,6 @@ export class MarketData {
     return supportedIntervals.reduce((prev, curr) =>
       Math.abs(curr - interval) < Math.abs(prev - interval) ? curr : prev
     );
-  }
-
-  private combineIntradayCandles(
-    data: HistoricalDataResponse,
-    desiredIntervalMinutes: number
-  ): Candle[] {
-    const candles: Candle[] = [];
-    const apiInterval = this.getApiInterval(data.timestamp);
-    const multiplier = Math.max(
-      1,
-      Math.floor(desiredIntervalMinutes / apiInterval)
-    );
-
-    for (let i = 0; i < data.timestamp.length; i += multiplier) {
-      const slice = {
-        open: data.open.slice(i, i + multiplier),
-        high: data.high.slice(i, i + multiplier),
-        low: data.low.slice(i, i + multiplier),
-        close: data.close.slice(i, i + multiplier),
-        volume: data.volume.slice(i, i + multiplier),
-        timestamp: data.timestamp.slice(i, i + multiplier),
-      };
-
-      candles.push({
-        open: slice.open[0],
-        high: Math.max(...slice.high),
-        low: Math.min(...slice.low),
-        close: slice.close[slice.close.length - 1],
-        volume: slice.volume.reduce((a, b) => a + b, 0),
-        timestamp: slice.timestamp[0],
-      });
-    }
-
-    return candles;
-  }
-
-  private combineDailyCandles(
-    data: HistoricalDataResponse,
-    multiplier: number,
-    interval: TimeInterval
-  ): Candle[] {
-    const candles: Candle[] = [];
-    let currentCandle: Candle | null = null;
-    let candleStartTimestamp = 0;
-
-    for (let i = 0; i < data.timestamp.length; i++) {
-      const timestamp = data.timestamp[i];
-      const date = new Date(timestamp * 1000);
-
-      if (!this.isValidTradingDay(date)) {
-        continue; // Skip weekends and holidays
-      }
-
-      if (
-        currentCandle === null ||
-        this.shouldStartNewCandle(timestamp, candleStartTimestamp, interval)
-      ) {
-        if (currentCandle !== null) {
-          candles.push(currentCandle);
-        }
-        currentCandle = {
-          open: data.open[i],
-          high: data.high[i],
-          low: data.low[i],
-          close: data.close[i],
-          volume: data.volume[i],
-          timestamp: timestamp,
-        };
-        candleStartTimestamp = timestamp;
-      } else {
-        currentCandle.high = Math.max(currentCandle.high, data.high[i]);
-        currentCandle.low = Math.min(currentCandle.low, data.low[i]);
-        currentCandle.close = data.close[i];
-        currentCandle.volume += data.volume[i];
-      }
-    }
-
-    if (currentCandle !== null) {
-      candles.push(currentCandle);
-    }
-
-    return candles;
   }
 
   private isValidTradingDay(date: Date): boolean {
