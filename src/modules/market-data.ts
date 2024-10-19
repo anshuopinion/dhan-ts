@@ -66,12 +66,25 @@ export class MarketData {
   async getProcessedCandleData(
     request: Omit<HistoricalDataRequest, "fromDate" | "toDate"> & {
       interval: TimeInterval;
+      from?: string;
+      to?: string;
       daysAgo?: number;
     }
   ): Promise<HistoricalDataResponse> {
-    const { interval, daysAgo = 60, ...baseRequest } = request;
-    const toDate = new Date();
-    const fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    const { interval, from, to, daysAgo, ...baseRequest } = request;
+    let fromDate: Date, toDate: Date;
+
+    if (from && to) {
+      fromDate = new Date(from);
+      toDate = new Date(to);
+    } else if (daysAgo !== undefined) {
+      toDate = new Date();
+      fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    } else {
+      // Default to 60 days if neither from/to nor daysAgo is provided
+      toDate = new Date();
+      fromDate = new Date(toDate.getTime() - 60 * 24 * 60 * 60 * 1000);
+    }
 
     let data: HistoricalDataResponse;
     const intervalInfo = this.getIntervalInfo(interval);
