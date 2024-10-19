@@ -56,6 +56,7 @@ export class MarketData {
   async getIntradayHistoricalData(
     request: IntradayDataRequest
   ): Promise<HistoricalDataResponse> {
+    console.log("request", request);
     const response = await this.axiosInstance.post<HistoricalDataResponse>(
       "/v2/charts/intraday",
       request
@@ -66,12 +67,25 @@ export class MarketData {
   async getProcessedCandleData(
     request: Omit<HistoricalDataRequest, "fromDate" | "toDate"> & {
       interval: TimeInterval;
+      from?: string;
+      to?: string;
       daysAgo?: number;
     }
   ): Promise<HistoricalDataResponse> {
-    const { interval, daysAgo = 60, ...baseRequest } = request;
-    const toDate = new Date();
-    const fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    const { interval, from, to, daysAgo, ...baseRequest } = request;
+    let fromDate: Date, toDate: Date;
+
+    if (from && to) {
+      fromDate = new Date(from);
+      toDate = new Date(to);
+    } else if (daysAgo !== undefined) {
+      toDate = new Date();
+      fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    } else {
+      // Default to 60 days if neither from/to nor daysAgo is provided
+      toDate = new Date();
+      fromDate = new Date(toDate.getTime() - 60 * 24 * 60 * 60 * 1000);
+    }
 
     let data: HistoricalDataResponse;
     const intervalInfo = this.getIntervalInfo(interval);
@@ -83,6 +97,7 @@ export class MarketData {
         toDate: toDate.toISOString().split("T")[0],
         fromDate: fromDate.toISOString().split("T")[0],
       });
+
       return this.combineDailyCandles(data, intervalInfo.multiplier, interval);
     } else {
       data = await this.getIntradayHistoricalData({
@@ -149,15 +164,8 @@ export class MarketData {
       volume: [],
       timestamp: [],
     };
-    let currentCandle: HistoricalDataResponse = {
-      open: [],
-      high: [],
-      low: [],
-      close: [],
-      volume: [],
-      timestamp: [],
-    };
-    let candleStartTimestamp = 0;
+    let currentCandle: Candle | null = null;
+    let candleStartDate: Date | null = null;
 
     for (let i = 0; i < data.timestamp.length; i++) {
       const timestamp = data.timestamp[i];
@@ -168,43 +176,42 @@ export class MarketData {
       }
 
       if (
-        currentCandle.timestamp.length === 0 ||
-        this.shouldStartNewCandle(timestamp, candleStartTimestamp, interval)
+        !currentCandle ||
+        !candleStartDate ||
+        this.shouldStartNewCandle(date, candleStartDate, interval)
       ) {
-        if (currentCandle.timestamp.length > 0) {
-          result.open.push(currentCandle.open[0]);
-          result.high.push(Math.max(...currentCandle.high));
-          result.low.push(Math.min(...currentCandle.low));
-          result.close.push(
-            currentCandle.close[currentCandle.close.length - 1]
-          );
-          result.volume.push(currentCandle.volume.reduce((a, b) => a + b, 0));
-          result.timestamp.push(currentCandle.timestamp[0]);
+        if (currentCandle) {
+          result.open.push(currentCandle.open);
+          result.high.push(currentCandle.high);
+          result.low.push(currentCandle.low);
+          result.close.push(currentCandle.close);
+          result.volume.push(currentCandle.volume);
+          result.timestamp.push(currentCandle.timestamp);
         }
         currentCandle = {
-          open: [data.open[i]],
-          high: [data.high[i]],
-          low: [data.low[i]],
-          close: [data.close[i]],
-          volume: [data.volume[i]],
-          timestamp: [timestamp],
+          open: data.open[i],
+          high: data.high[i],
+          low: data.low[i],
+          close: data.close[i],
+          volume: data.volume[i],
+          timestamp: timestamp,
         };
-        candleStartTimestamp = timestamp;
+        candleStartDate = date;
       } else {
-        currentCandle.high.push(data.high[i]);
-        currentCandle.low.push(data.low[i]);
-        currentCandle.close[currentCandle.close.length - 1] = data.close[i];
-        currentCandle.volume.push(data.volume[i]);
+        currentCandle.high = Math.max(currentCandle.high, data.high[i]);
+        currentCandle.low = Math.min(currentCandle.low, data.low[i]);
+        currentCandle.close = data.close[i];
+        currentCandle.volume += data.volume[i];
       }
     }
 
-    if (currentCandle.timestamp.length > 0) {
-      result.open.push(currentCandle.open[0]);
-      result.high.push(Math.max(...currentCandle.high));
-      result.low.push(Math.min(...currentCandle.low));
-      result.close.push(currentCandle.close[currentCandle.close.length - 1]);
-      result.volume.push(currentCandle.volume.reduce((a, b) => a + b, 0));
-      result.timestamp.push(currentCandle.timestamp[0]);
+    if (currentCandle) {
+      result.open.push(currentCandle.open);
+      result.high.push(currentCandle.high);
+      result.low.push(currentCandle.low);
+      result.close.push(currentCandle.close);
+      result.volume.push(currentCandle.volume);
+      result.timestamp.push(currentCandle.timestamp);
     }
 
     return result;
@@ -219,7 +226,7 @@ export class MarketData {
       case "m":
         return { baseInterval: value, multiplier: 1 };
       case "d":
-        return { baseInterval: 1440, multiplier: value };
+        return { baseInterval: 1440, multiplier: 1 };
       case "w":
         return { baseInterval: 1440, multiplier: 7 };
       case "y":
@@ -229,33 +236,21 @@ export class MarketData {
     }
   }
 
-  private getClosestSupportedIntradayInterval(interval: number): number {
-    const supportedIntervals = [1, 5, 15, 25, 60];
-    return supportedIntervals.reduce((prev, curr) =>
-      Math.abs(curr - interval) < Math.abs(prev - interval) ? curr : prev
-    );
-  }
-
-  private isValidTradingDay(date: Date): boolean {
-    const day = date.getDay();
-    return day !== 0 && day !== 6; // 0 is Sunday, 6 is Saturday
-    // Note: This doesn't account for holidays. You may want to add a holiday calendar check here.
-  }
-
   private shouldStartNewCandle(
-    currentTimestamp: number,
-    startTimestamp: number,
+    currentDate: Date,
+    startDate: Date,
     interval: TimeInterval
   ): boolean {
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const currentDate = new Date(currentTimestamp * 1000);
-    const startDate = new Date(startTimestamp * 1000);
-
     switch (interval) {
+      case TimeInterval.DAY_1:
+        return (
+          currentDate.getDate() !== startDate.getDate() ||
+          currentDate.getMonth() !== startDate.getMonth() ||
+          currentDate.getFullYear() !== startDate.getFullYear()
+        );
       case TimeInterval.WEEK_1:
         return (
-          currentDate.getDay() < startDate.getDay() ||
-          currentDate.getTime() - startDate.getTime() >= 7 * msPerDay
+          currentDate.getTime() - startDate.getTime() >= 7 * 24 * 60 * 60 * 1000
         );
       case TimeInterval.MONTH_1:
       case TimeInterval.MONTH_2:
@@ -268,8 +263,40 @@ export class MarketData {
       case TimeInterval.YEAR_1:
         return currentDate.getFullYear() !== startDate.getFullYear();
       default:
-        return false; // For daily candles, we don't need to start a new candle manually
+        return false;
     }
+  }
+  private getClosestSupportedIntradayInterval(interval: number): number {
+    const supportedIntervals = [1, 5, 15, 60];
+    const intervalMap: { [key: number]: number } = {
+      1: 1,
+      2: 1,
+      3: 1,
+      4: 1,
+      5: 5,
+      10: 5,
+      15: 15,
+      30: 15,
+      45: 15,
+      60: 60,
+      120: 60,
+      180: 60,
+      240: 60,
+    };
+
+    if (interval in intervalMap) {
+      return intervalMap[interval];
+    }
+
+    return supportedIntervals.reduce((prev, curr) =>
+      Math.abs(curr - interval) < Math.abs(prev - interval) ? curr : prev
+    );
+  }
+
+  private isValidTradingDay(date: Date): boolean {
+    const day = date.getDay();
+    return day !== 0 && day !== 6; // 0 is Sunday, 6 is Saturday
+    // Note: This doesn't account for holidays. You may want to add a holiday calendar check here.
   }
 
   private getApiInterval(timestamps: number[]): number {
