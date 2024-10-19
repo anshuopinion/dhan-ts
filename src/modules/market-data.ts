@@ -56,6 +56,7 @@ export class MarketData {
   async getIntradayHistoricalData(
     request: IntradayDataRequest
   ): Promise<HistoricalDataResponse> {
+    console.log("request", request);
     const response = await this.axiosInstance.post<HistoricalDataResponse>(
       "/v2/charts/intraday",
       request
@@ -266,7 +267,27 @@ export class MarketData {
     }
   }
   private getClosestSupportedIntradayInterval(interval: number): number {
-    const supportedIntervals = [1, 5, 15, 25, 60];
+    const supportedIntervals = [1, 5, 15, 60];
+    const intervalMap: { [key: number]: number } = {
+      1: 1,
+      2: 1,
+      3: 1,
+      4: 1,
+      5: 5,
+      10: 5,
+      15: 15,
+      30: 15,
+      45: 15,
+      60: 60,
+      120: 60,
+      180: 60,
+      240: 60,
+    };
+
+    if (interval in intervalMap) {
+      return intervalMap[interval];
+    }
+
     return supportedIntervals.reduce((prev, curr) =>
       Math.abs(curr - interval) < Math.abs(prev - interval) ? curr : prev
     );
