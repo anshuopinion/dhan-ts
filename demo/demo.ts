@@ -330,11 +330,11 @@ async function allTimeFrameCandles() {
   const historical = await dhanClient.marketData.getProcessedCandleData({
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
     instrument: InstrumentToken.EQUITY,
-    interval: TimeInterval.HOUR_1,
+    interval: TimeInterval.MIN_5,
     expiryCode: 0,
-    // daysAgo: 3000,
-    from: "2024-10-8",
-    to: "2024-10-9",
+    daysAgo: 5,
+    // to: "2024-10-16",
+    // from: "2023-06-11",
     securityId: "19913",
   });
 
