@@ -1,6 +1,6 @@
 {
   "name": "dhan-ts",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "TypeScript client for Dhan API v2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,6 +27,8 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^0.21.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^16.4.5",
     "ws": "^7.4.6"
   },

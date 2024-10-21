@@ -6,7 +6,18 @@ import {
   HistoricalDataResponse,
   TimeInterval,
 } from "../types";
-
+import {
+  addDays,
+  subDays,
+  setHours,
+  setMinutes,
+  isWeekend,
+  isBefore,
+  format,
+  parse,
+  parseISO,
+} from "date-fns";
+import { toZonedTime, toDate, formatInTimeZone } from "date-fns-tz";
 interface Candle {
   open: number;
   high: number;
@@ -17,6 +28,7 @@ interface Candle {
 }
 
 export class MarketData {
+  private readonly kolkataTimeZone = "Asia/Kolkata";
   constructor(private readonly axiosInstance: AxiosInstance) {}
 
   async getLTP(request: MarketFeedRequest): Promise<any> {
@@ -56,11 +68,11 @@ export class MarketData {
   async getIntradayHistoricalData(
     request: IntradayDataRequest
   ): Promise<HistoricalDataResponse> {
-    console.log("request", request);
     const response = await this.axiosInstance.post<HistoricalDataResponse>(
       "/v2/charts/intraday",
       request
     );
+    console.log("request", response.data);
     return response.data;
   }
 
@@ -76,15 +88,15 @@ export class MarketData {
     let fromDate: Date, toDate: Date;
 
     if (from && to) {
-      fromDate = new Date(from);
-      toDate = new Date(to);
+      fromDate = parseISO(from);
+      toDate = parseISO(to);
     } else if (daysAgo !== undefined) {
-      toDate = new Date();
-      fromDate = new Date(toDate.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      toDate = this.getLatestValidMarketDate();
+      fromDate = subDays(toDate, daysAgo);
     } else {
       // Default to 60 days if neither from/to nor daysAgo is provided
-      toDate = new Date();
-      fromDate = new Date(toDate.getTime() - 60 * 24 * 60 * 60 * 1000);
+      toDate = this.getLatestValidMarketDate();
+      fromDate = subDays(toDate, 60);
     }
 
     let data: HistoricalDataResponse;
@@ -94,16 +106,24 @@ export class MarketData {
       // 1 day or more
       data = await this.getDailyHistoricalData({
         ...baseRequest,
-        toDate: toDate.toISOString().split("T")[0],
-        fromDate: fromDate.toISOString().split("T")[0],
+        toDate: formatInTimeZone(toDate, this.kolkataTimeZone, "yyyy-MM-dd"),
+        fromDate: formatInTimeZone(
+          fromDate,
+          this.kolkataTimeZone,
+          "yyyy-MM-dd"
+        ),
       });
 
       return this.combineDailyCandles(data, intervalInfo.multiplier, interval);
     } else {
       data = await this.getIntradayHistoricalData({
         ...baseRequest,
-        toDate: toDate.toISOString().split("T")[0],
-        fromDate: fromDate.toISOString().split("T")[0],
+        toDate: formatInTimeZone(toDate, this.kolkataTimeZone, "yyyy-MM-dd"),
+        fromDate: formatInTimeZone(
+          fromDate,
+          this.kolkataTimeZone,
+          "yyyy-MM-dd"
+        ),
         interval: this.getClosestSupportedIntradayInterval(
           intervalInfo.baseInterval
         ).toString(),
@@ -292,10 +312,30 @@ export class MarketData {
       Math.abs(curr - interval) < Math.abs(prev - interval) ? curr : prev
     );
   }
+  private getLatestValidMarketDate(): Date {
+    const now = new Date();
+    const kolkataTime = toZonedTime(now, this.kolkataTimeZone);
+    const marketOpenTime = setMinutes(setHours(kolkataTime, 9), 15);
+
+    let validMarketDate = kolkataTime;
+
+    // If it's before market open time, move to the previous day
+    if (isBefore(kolkataTime, marketOpenTime)) {
+      validMarketDate = subDays(validMarketDate, 1);
+    }
+
+    // Adjust for weekends
+    while (isWeekend(validMarketDate)) {
+      validMarketDate = subDays(validMarketDate, 1);
+    }
+
+    // Convert back to UTC
+    return toDate(validMarketDate, { timeZone: this.kolkataTimeZone });
+  }
 
   private isValidTradingDay(date: Date): boolean {
-    const day = date.getDay();
-    return day !== 0 && day !== 6; // 0 is Sunday, 6 is Saturday
+    const kolkataDate = toZonedTime(date, this.kolkataTimeZone);
+    return !isWeekend(kolkataDate);
     // Note: This doesn't account for holidays. You may want to add a holiday calendar check here.
   }
 

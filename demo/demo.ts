@@ -329,16 +329,16 @@ async function allTimeFrameCandles() {
   // Combined all time frame candles
   const historical = await dhanClient.marketData.getProcessedCandleData({
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
-    instrument: InstrumentToken.EQUITY,
-    interval: TimeInterval.HOUR_1,
     expiryCode: 0,
-    daysAgo: 2,
-    // to: "2024-10-16",
-    // from: "2023-06-11",
-    securityId: "19913",
+    instrument: InstrumentToken.EQUITY,
+    interval: TimeInterval.MIN_15,
+    securityId: "12032",
+    daysAgo: 1,
+    // from: "2024-10-13",
+    // to: "2024-10-15",
   });
 
-  console.log("Historical Data:", historical);
+  // console.log("Historical Data:", historical);
 }
 
 async function runComprehensiveDemo() {
