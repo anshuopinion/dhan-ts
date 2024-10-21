@@ -75,20 +75,36 @@ export class MarketData {
       from?: string;
       to?: string;
       daysAgo?: number;
+      getAll?: boolean;
     }
   ): Promise<HistoricalDataResponse> {
-    const { interval, from, to, daysAgo, ...baseRequest } = request;
+    const {
+      interval,
+      from,
+      to,
+      daysAgo,
+      getAll = false,
+      ...baseRequest
+    } = request;
     let fromDate: Date, toDate: Date;
 
-    if (from && to) {
+    toDate = this.getLatestValidMarketDate();
+
+    if (getAll) {
+      if (this.isIntradayInterval(interval)) {
+        // For intraday, fetch last 4 trading days + today
+        fromDate = this.getLastNthTradingDay(toDate, 4);
+      } else {
+        // For historical, fetch from inception (use a very old date)
+        fromDate = new Date("1970-01-01");
+      }
+    } else if (from && to) {
       fromDate = parseISO(from);
       toDate = parseISO(to);
     } else if (daysAgo !== undefined) {
-      toDate = this.getLatestValidMarketDate();
       fromDate = subDays(toDate, daysAgo);
     } else {
       // Default to 60 days if neither from/to nor daysAgo is provided
-      toDate = this.getLatestValidMarketDate();
       fromDate = subDays(toDate, 60);
     }
 
@@ -124,7 +140,23 @@ export class MarketData {
       return this.combineIntradayCandles(data, intervalInfo.baseInterval);
     }
   }
+  private isIntradayInterval(interval: TimeInterval): boolean {
+    return interval.endsWith("m");
+  }
 
+  private getLastNthTradingDay(fromDate: Date, n: number): Date {
+    let currentDate = fromDate;
+    let tradingDaysCount = 0;
+
+    while (tradingDaysCount < n) {
+      currentDate = subDays(currentDate, 1);
+      if (this.isValidTradingDay(currentDate)) {
+        tradingDaysCount++;
+      }
+    }
+
+    return currentDate;
+  }
   private combineIntradayCandles(
     data: HistoricalDataResponse,
     desiredIntervalMinutes: number
