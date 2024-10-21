@@ -287,7 +287,14 @@ export interface HistoricalDataResponse {
   volume: number[];
   timestamp: number[];
 }
-
+export interface Candle {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timestamp: number;
+}
 export interface DepthLevel {
   quantity: number;
   orders: number;

@@ -5,6 +5,7 @@ import {
   IntradayDataRequest,
   HistoricalDataResponse,
   TimeInterval,
+  Candle,
 } from "../types";
 import {
   addDays,
@@ -13,21 +14,11 @@ import {
   setMinutes,
   isWeekend,
   isBefore,
-  format,
-  parse,
   parseISO,
   isAfter,
   getDay,
 } from "date-fns";
 import { toZonedTime, toDate, formatInTimeZone } from "date-fns-tz";
-interface Candle {
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  timestamp: number;
-}
 
 export class MarketData {
   private readonly kolkataTimeZone = "Asia/Kolkata";
