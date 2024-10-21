@@ -16,6 +16,8 @@ import {
   format,
   parse,
   parseISO,
+  isAfter,
+  getDay,
 } from "date-fns";
 import { toZonedTime, toDate, formatInTimeZone } from "date-fns-tz";
 interface Candle {
@@ -319,20 +321,32 @@ export class MarketData {
 
     let validMarketDate = kolkataTime;
 
-    // If it's before market open time, move to the previous day
-    if (isBefore(kolkataTime, marketOpenTime)) {
-      validMarketDate = subDays(validMarketDate, 1);
-    }
+    // If the current date is in the future, move to the last Friday
+    if (isAfter(validMarketDate, now)) {
+      validMarketDate = this.getLastFriday(now);
+    } else {
+      // If it's before market open time, move to the previous day
+      if (isBefore(kolkataTime, marketOpenTime)) {
+        validMarketDate = subDays(validMarketDate, 1);
+      }
 
-    // Adjust for weekends
-    while (isWeekend(validMarketDate)) {
-      validMarketDate = subDays(validMarketDate, 1);
+      // Adjust for weekends
+      while (isWeekend(validMarketDate)) {
+        validMarketDate = subDays(validMarketDate, 1);
+      }
     }
 
     // Convert back to UTC
     return toDate(validMarketDate, { timeZone: this.kolkataTimeZone });
   }
-
+  private getLastFriday(date: Date): Date {
+    let lastFriday = date;
+    while (getDay(lastFriday) !== 5) {
+      // 5 represents Friday
+      lastFriday = subDays(lastFriday, 1);
+    }
+    return lastFriday;
+  }
   private isValidTradingDay(date: Date): boolean {
     const kolkataDate = toZonedTime(date, this.kolkataTimeZone);
     return !isWeekend(kolkataDate);

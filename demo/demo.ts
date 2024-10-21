@@ -331,14 +331,14 @@ async function allTimeFrameCandles() {
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
     expiryCode: 0,
     instrument: InstrumentToken.EQUITY,
-    interval: TimeInterval.MIN_15,
+    interval: TimeInterval.DAY_1,
     securityId: "12032",
     daysAgo: 1,
-    // from: "2024-10-13",
-    // to: "2024-10-15",
+    // from: "2024-10-18",
+    // to: "2024-10-23",
   });
 
-  // console.log("Historical Data:", historical);
+  console.log("Historical Data:", historical);
 }
 
 async function runComprehensiveDemo() {
