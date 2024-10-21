@@ -331,12 +331,12 @@ async function allTimeFrameCandles() {
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
     expiryCode: 0,
     instrument: InstrumentToken.EQUITY,
-    interval: TimeInterval.MIN_5,
+    interval: TimeInterval.WEEK_1,
     securityId: "12032",
-    // daysAgo: 1,
-    getAll: true,
-    // from: "2024-10-18",
-    // to: "2024-10-23",
+    daysAgo: 1,
+
+    from: "2024-10-10",
+    to: "2024-10-23",
   });
 
   console.log("Historical Data:", historical);

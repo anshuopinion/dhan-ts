@@ -65,7 +65,6 @@ export class MarketData {
       "/v2/charts/intraday",
       request
     );
-    console.log("request", response.data);
     return response.data;
   }
 
@@ -75,22 +74,19 @@ export class MarketData {
       from?: string;
       to?: string;
       daysAgo?: number;
-      getAll?: boolean;
     }
   ): Promise<HistoricalDataResponse> {
-    const {
-      interval,
-      from,
-      to,
-      daysAgo,
-      getAll = false,
-      ...baseRequest
-    } = request;
+    const { interval, from, to, daysAgo, ...baseRequest } = request;
     let fromDate: Date, toDate: Date;
 
     toDate = this.getLatestValidMarketDate();
 
-    if (getAll) {
+    if (from && to) {
+      fromDate = parseISO(from);
+      toDate = parseISO(to);
+    } else if (daysAgo !== undefined) {
+      fromDate = subDays(toDate, daysAgo);
+    } else {
       if (this.isIntradayInterval(interval)) {
         // For intraday, fetch last 4 trading days + today
         fromDate = this.getLastNthTradingDay(toDate, 4);
@@ -98,14 +94,6 @@ export class MarketData {
         // For historical, fetch from inception (use a very old date)
         fromDate = new Date("1970-01-01");
       }
-    } else if (from && to) {
-      fromDate = parseISO(from);
-      toDate = parseISO(to);
-    } else if (daysAgo !== undefined) {
-      fromDate = subDays(toDate, daysAgo);
-    } else {
-      // Default to 60 days if neither from/to nor daysAgo is provided
-      fromDate = subDays(toDate, 60);
     }
 
     let data: HistoricalDataResponse;
