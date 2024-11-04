@@ -1,4 +1,4 @@
-import { AxiosInstance } from "axios";
+import axios, { AxiosInstance } from "axios";
 import {
   MarketFeedRequest,
   HistoricalDataRequest,
@@ -18,10 +18,14 @@ import {
   getDay,
 } from "date-fns";
 import { toZonedTime, toDate, formatInTimeZone } from "date-fns-tz";
+import { FreeMarketData } from "../free/FreeMarketData";
 
 export class MarketData {
   private readonly kolkataTimeZone = "Asia/Kolkata";
-  constructor(private readonly axiosInstance: AxiosInstance) {}
+  private freeMarketData: FreeMarketData;
+  constructor(private readonly axiosInstance: AxiosInstance) {
+    this.freeMarketData = new FreeMarketData();
+  }
 
   async getLTP(request: MarketFeedRequest): Promise<any> {
     const response = await this.axiosInstance.post(
@@ -100,7 +104,8 @@ export class MarketData {
 
     if (intervalInfo.baseInterval >= 1440) {
       // 1 day or more
-      data = await this.getDailyHistoricalData({
+
+      const requestData = {
         ...baseRequest,
         toDate: formatInTimeZone(toDate, this.kolkataTimeZone, "yyyy-MM-dd"),
         fromDate: formatInTimeZone(
@@ -108,11 +113,17 @@ export class MarketData {
           this.kolkataTimeZone,
           "yyyy-MM-dd"
         ),
-      });
+      };
+
+      if (request.isFree) {
+        data = await this.freeMarketData.getFreeHistoricalData(requestData);
+      } else {
+        data = await this.getDailyHistoricalData(requestData);
+      }
 
       return this.combineDailyCandles(data, intervalInfo.multiplier, interval);
     } else {
-      data = await this.getIntradayHistoricalData({
+      const requestData = {
         ...baseRequest,
         toDate: formatInTimeZone(toDate, this.kolkataTimeZone, "yyyy-MM-dd"),
         fromDate: formatInTimeZone(
@@ -123,7 +134,16 @@ export class MarketData {
         interval: this.getClosestSupportedIntradayInterval(
           intervalInfo.baseInterval
         ).toString(),
-      });
+      };
+
+      if (request.isFree) {
+        data = await this.freeMarketData.getFreeIntradayHistoricalData(
+          requestData
+        );
+      } else {
+        data = await this.getIntradayHistoricalData(requestData);
+      }
+
       return this.combineIntradayCandles(data, intervalInfo.baseInterval);
     }
   }

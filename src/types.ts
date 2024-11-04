@@ -268,6 +268,7 @@ export interface HistoricalDataRequest {
   expiryCode: number;
   fromDate: string;
   toDate: string;
+  isFree?: boolean;
 }
 
 export interface IntradayDataRequest {
@@ -581,4 +582,34 @@ export enum TimeInterval {
   MONTH_3 = "3M",
   MONTH_6 = "6M",
   YEAR_1 = "1y",
+}
+
+export interface DhanApiResponse {
+  success: boolean;
+  message?: string;
+  status?: string;
+  data: DhanOHLCData;
+  remark?: string;
+}
+
+// Data structure for OHLC data
+export interface DhanOHLCData {
+  t: number[]; // Array of timestamps in seconds
+  o: number[]; // Array of open prices
+  h: number[]; // Array of high prices
+  l: number[]; // Array of low prices
+  c: number[]; // Array of close prices
+  v: number[]; // Array of volumes
+  n?: number[]; // Array of number of trades (optional)
+}
+
+// Request interface for Dhan API
+export interface DhanHistoricalDataRequest {
+  EXCH: string; // Exchange (e.g., "NSE", "BSE")
+  SYM: string; // Symbol/scrip code
+  SEG: string; // Segment (e.g., "E" for equity)
+  INST: string; // Instrument type (e.g., "EQUITY")
+  START: number; // Start timestamp in seconds
+  END: number; // End timestamp in seconds
+  INTERVAL?: string; // Time interval (e.g., "1", "5", "15", "D", "W", "M")
 }
