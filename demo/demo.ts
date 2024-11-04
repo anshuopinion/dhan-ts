@@ -333,8 +333,8 @@ async function allTimeFrameCandles() {
     instrument: InstrumentToken.EQUITY,
     interval: TimeInterval.MIN_1,
     securityId: "12032",
-    daysAgo: 1,
-    isFree: false,
+    daysAgo: 0,
+    isFree: true,
   });
 
   console.log("Historical Data:", historical);

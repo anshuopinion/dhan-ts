@@ -32,14 +32,31 @@ export class FreeMarketData {
         INST: "EQUITY",
         SEC_ID: Number(request.securityId),
         START: this.dateToTimestamp(request.fromDate),
-        END: this.dateToTimestamp(request.toDate),
+        END: this.dateToTimestamp(request.toDate, true),
         INTERVAL: request.interval,
       };
+      console.log(
+        "From:",
+        new Date(
+          this.dateToTimestamp(request.fromDate, false) * 1000
+        ).toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        })
+      );
+
+      console.log(
+        "End:",
+        new Date(
+          this.dateToTimestamp(request.toDate, true) * 1000
+        ).toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        })
+      );
 
       console.log("dhanRequest", dhanRequest);
 
       const response = await axios.post<DhanApiResponse>(
-        `${this.DHAN_API_URL}/getDataH`,
+        `${this.DHAN_API_URL}/getData`,
         dhanRequest,
         {
           headers: this.getApiHeaders(),
@@ -83,7 +100,7 @@ export class FreeMarketData {
         SEG: "E",
         INST: "EQUITY",
         START: this.dateToTimestamp(request.fromDate),
-        END: this.dateToTimestamp(request.toDate),
+        END: this.dateToTimestamp(request.toDate, true),
         INTERVAL: request.interval || "D", // Default to daily if not specified
       };
 
@@ -128,9 +145,40 @@ export class FreeMarketData {
   }
 
   // Utility function to convert date to timestamp
-  private dateToTimestamp(date: string | Date): number {
+  private dateToTimestamp(date: string | Date, isEnd: boolean = false): number {
+    // Create date object and convert to IST
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    return Math.floor(dateObj.getTime() / 1000);
+    const istDate = new Date(
+      dateObj.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+
+    // Set market hours (IST)
+    const marketOpen = new Date(istDate);
+    marketOpen.setHours(9, 15, 0, 0);
+
+    const marketClose = new Date(istDate);
+    marketClose.setHours(15, 30, 0, 0);
+
+    // Get current time in IST
+    const currentTime = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+
+    // Check if the date is today
+    const isToday = istDate.toDateString() === currentTime.toDateString();
+
+    // For start timestamps, always return market open time (9:15)
+    if (!isEnd) {
+      return Math.floor(marketOpen.getTime() / 1000);
+    }
+
+    // For end timestamps on current date, use current time
+    if (isToday) {
+      return Math.floor(currentTime.getTime() / 1000);
+    }
+
+    // For all other end timestamps, return market close time (15:30)
+    return Math.floor(marketClose.getTime() / 1000);
   }
 
   // Utility function to get API headers
