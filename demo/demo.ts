@@ -270,23 +270,36 @@ async function demoStatements() {
 async function demoLiveFeed() {
   console.log("\nDemonstrating Live Feed:");
 
-  await dhanFeed.liveFeed.connect();
-  console.log("WebSocket connection established");
-  const instruments: Instrument[] = [
-    [ExchangeSegment.NSE_EQ, "7508"],
-    [ExchangeSegment.NSE_EQ, "993"],
-    [ExchangeSegment.NSE_EQ, "9931"],
-  ]; // HDFC Bank
-  dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
-  console.log("Subscribed to live feed");
+  try {
+    await dhanFeed.liveFeed.connect();
+    console.log("WebSocket connection established");
 
-  dhanFeed.liveFeed.on("data", (data) => {
-    console.log("Received live feed data:", data);
-  });
+    const instruments: Instrument[] = [
+      [ExchangeSegment.NSE_EQ, "7508"],
+      // [ExchangeSegment.NSE_EQ, "993"],
+      // [ExchangeSegment.NSE_EQ, "9931"],
+    ];
 
-  // Keep the connection open for 30 seconds
-  await new Promise((resolve) => setTimeout(resolve, 30000));
-  dhanFeed.liveFeed.close();
+    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
+    console.log("Subscribed to live feed");
+
+    dhanFeed.liveFeed.on("data", (data) => {
+      console.log("Received live feed data:", data);
+    });
+
+    dhanFeed.liveFeed.on("error", (error) => {
+      console.error("LiveFeed error:", error);
+    });
+
+    // The connection will now stay alive as long as the server responds
+    // No need for artificial timeouts
+
+    // If you want to close the connection:
+    // await new Promise((resolve) => setTimeout(resolve, yourTimeout));
+    // liveFeed.close();
+  } catch (error) {
+    console.error("Error in live feed demo:", error);
+  }
 }
 
 async function demoLiveOrderUpdate() {

@@ -28,9 +28,12 @@ export class LiveFeed {
     string,
     { instruments: Instrument[]; requestCode: number }
   > = new Map();
-  private pingTimeout: NodeJS.Timeout | null = null;
-  private readonly pingInterval: number = 10000; // 10 seconds
-  private readonly pingTimeoutDuration: number = 40000; // 40 seconds
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private connectionTimeout: NodeJS.Timeout | null = null;
+  private readonly PING_INTERVAL = 10000; // 10 seconds
+  private readonly CONNECTION_TIMEOUT = 40000; // 40 seconds
+  private lastPongTime: number = Date.now();
+  private reconnectTimeout: NodeJS.Timeout | null = null;
 
   constructor(config: DhanConfig) {
     this.config = config;
@@ -48,6 +51,62 @@ export class LiveFeed {
   private getConnectionUrl(): string {
     return `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
   }
+  private startHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+
+    // Send ping every PING_INTERVAL
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.ping();
+          console.log("Ping sent");
+          this.checkConnectionTimeout();
+        } catch (error) {
+          console.error("Error sending ping:", error);
+          this.handleConnectionTimeout();
+        }
+      }
+    }, this.PING_INTERVAL);
+  }
+
+  private checkConnectionTimeout() {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+    }
+
+    this.connectionTimeout = setTimeout(() => {
+      const timeSinceLastPong = Date.now() - this.lastPongTime;
+      if (timeSinceLastPong >= this.CONNECTION_TIMEOUT) {
+        this.handleConnectionTimeout();
+      }
+    }, this.CONNECTION_TIMEOUT);
+  }
+
+  private handleConnectionTimeout() {
+    console.log("Connection timeout - no pong received");
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.terminate();
+    }
+    this.cleanupConnection();
+    this.handleReconnection();
+  }
+
+  private cleanupConnection() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws = null;
+    }
+  }
 
   async connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -64,17 +123,32 @@ export class LiveFeed {
       try {
         const url = this.getConnectionUrl();
         this.ws = new WebSocket(url);
+        this.lastPongTime = Date.now(); // Reset last pong time on new connection
+
+        const initialConnectionTimeout = setTimeout(() => {
+          if (this.ws?.readyState !== WebSocket.OPEN) {
+            this.ws?.close();
+            reject(new Error("Initial connection timeout"));
+          }
+        }, 10000);
 
         this.ws.on("open", () => {
+          clearTimeout(initialConnectionTimeout);
           console.log("WebSocket connection established");
           this.reconnectAttempts = 0;
           this.isReconnecting = false;
-          this.setupPingPong();
+          this.startHeartbeat();
           this.resubscribeAll();
           resolve();
         });
 
+        this.ws.on("pong", () => {
+          this.lastPongTime = Date.now();
+          console.log("Pong received");
+        });
+
         this.ws.on("error", (error) => {
+          clearTimeout(initialConnectionTimeout);
           console.error("WebSocket error:", error);
           this.handleError(error);
           if (!this.isReconnecting) {
@@ -83,12 +157,17 @@ export class LiveFeed {
         });
 
         this.ws.on("close", (code, reason) => {
+          clearTimeout(initialConnectionTimeout);
           console.log(`WebSocket connection closed: ${code} - ${reason}`);
           this.cleanupConnection();
-          this.handleReconnection();
+
+          if (code !== 1000) {
+            this.handleReconnection();
+          }
         });
 
         this.ws.on("message", (data: Buffer) => {
+          this.lastPongTime = Date.now(); // Update last pong time on any message
           try {
             this.handleMessage(data);
           } catch (error) {
@@ -101,46 +180,6 @@ export class LiveFeed {
         reject(error);
       }
     });
-  }
-
-  private setupPingPong() {
-    if (this.pingTimeout) {
-      clearTimeout(this.pingTimeout);
-    }
-
-    this.pingTimeout = setTimeout(() => {
-      console.log("Ping timeout - closing connection");
-      this.cleanupConnection();
-      this.handleReconnection();
-    }, this.pingTimeoutDuration);
-
-    // Handle incoming pings from server
-    if (this.ws) {
-      this.ws.on("ping", () => {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.pong();
-          this.resetPingTimeout();
-        }
-      });
-    }
-  }
-
-  private resetPingTimeout() {
-    if (this.pingTimeout) {
-      clearTimeout(this.pingTimeout);
-    }
-    this.setupPingPong();
-  }
-
-  private cleanupConnection() {
-    if (this.pingTimeout) {
-      clearTimeout(this.pingTimeout);
-      this.pingTimeout = null;
-    }
-    if (this.ws) {
-      this.ws.removeAllListeners();
-      this.ws = null;
-    }
   }
 
   private async handleReconnection() {
@@ -158,21 +197,28 @@ export class LiveFeed {
       `Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`
     );
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, this.reconnectDelay));
-      await this.connect();
-    } catch (error) {
-      console.error("Reconnection failed:", error);
-      this.emit("error", { type: "reconnection_error", error });
-      if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        this.handleReconnection();
-      } else {
-        this.emit("error", {
-          type: "max_reconnection_attempts_reached",
-          message: "Failed to reconnect after maximum attempts",
-        });
-      }
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
     }
+
+    this.reconnectTimeout = setTimeout(async () => {
+      try {
+        await this.connect();
+      } catch (error) {
+        console.error("Reconnection failed:", error);
+        this.emit("error", { type: "reconnection_error", error });
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.handleReconnection();
+        } else {
+          this.emit("error", {
+            type: "max_reconnection_attempts_reached",
+            message: "Failed to reconnect after maximum attempts",
+          });
+        }
+      } finally {
+        this.isReconnecting = false;
+      }
+    }, this.reconnectDelay);
   }
   private validateInstruments(instruments: Instrument[]) {
     if (!Array.isArray(instruments) || instruments.length === 0) {
@@ -477,7 +523,7 @@ export class LiveFeed {
     this.cleanupConnection();
     if (this.ws) {
       try {
-        this.ws.close();
+        this.ws.close(1000, "Normal closure");
       } catch (error) {
         console.error("Error closing WebSocket:", error);
       }
