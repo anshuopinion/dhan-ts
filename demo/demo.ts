@@ -272,7 +272,11 @@ async function demoLiveFeed() {
 
   await dhanFeed.liveFeed.connect();
   console.log("WebSocket connection established");
-  const instruments: Instrument[] = [[ExchangeSegment.NSE_EQ, "7508"]]; // HDFC Bank
+  const instruments: Instrument[] = [
+    [ExchangeSegment.NSE_EQ, "7508"],
+    [ExchangeSegment.NSE_EQ, "993"],
+    [ExchangeSegment.NSE_EQ, "9931"],
+  ]; // HDFC Bank
   dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
   console.log("Subscribed to live feed");
 
@@ -350,9 +354,9 @@ async function runComprehensiveDemo() {
     // await demoForeverOrders();
     // await demoTradersControl();
     // await demoStatements();
-    // await demoLiveFeed();
+    await demoLiveFeed();
     // await demoLiveOrderUpdate();
-    await allTimeFrameCandles();
+    // await allTimeFrameCandles();
   } catch (error) {
     console.error("Error in demo:", error);
   }

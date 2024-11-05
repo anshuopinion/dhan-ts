@@ -18,34 +18,274 @@ import {
 export class LiveFeed {
   private ws: WebSocket | null = null;
   private readonly config: DhanConfig;
+  private reconnectAttempts: number = 0;
+  private readonly maxReconnectAttempts: number = 5;
+  private readonly reconnectDelay: number = 5000; // 5 seconds
+  private isReconnecting: boolean = false;
+  private subscribeQueue: { instruments: Instrument[]; requestCode: number }[] =
+    [];
+  private activeSubscriptions: Map<
+    string,
+    { instruments: Instrument[]; requestCode: number }
+  > = new Map();
+  private pingTimeout: NodeJS.Timeout | null = null;
+  private readonly pingInterval: number = 10000; // 10 seconds
+  private readonly pingTimeoutDuration: number = 40000; // 40 seconds
 
   constructor(config: DhanConfig) {
     this.config = config;
+    this.validateConfig();
   }
 
-  connect(): Promise<void> {
+  private validateConfig() {
+    if (!this.config.accessToken || !this.config.clientId) {
+      throw new Error(
+        "Invalid configuration: accessToken and clientId are required"
+      );
+    }
+  }
+
+  private getConnectionUrl(): string {
+    return `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
+  }
+
+  async connect(): Promise<void> {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log("WebSocket is already connected");
+      return;
+    }
+
+    if (this.isReconnecting) {
+      console.log("Reconnection in progress");
+      return;
+    }
+
     return new Promise((resolve, reject) => {
-      const url = `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
-      this.ws = new WebSocket(url);
+      try {
+        const url = this.getConnectionUrl();
+        this.ws = new WebSocket(url);
 
-      this.ws.on("open", () => {
-        console.log("WebSocket connection established");
-        resolve();
-      });
+        this.ws.on("open", () => {
+          console.log("WebSocket connection established");
+          this.reconnectAttempts = 0;
+          this.isReconnecting = false;
+          this.setupPingPong();
+          this.resubscribeAll();
+          resolve();
+        });
 
-      this.ws.on("error", (error) => {
-        console.error("WebSocket error:", error);
+        this.ws.on("error", (error) => {
+          console.error("WebSocket error:", error);
+          this.handleError(error);
+          if (!this.isReconnecting) {
+            reject(error);
+          }
+        });
+
+        this.ws.on("close", (code, reason) => {
+          console.log(`WebSocket connection closed: ${code} - ${reason}`);
+          this.cleanupConnection();
+          this.handleReconnection();
+        });
+
+        this.ws.on("message", (data: Buffer) => {
+          try {
+            this.handleMessage(data);
+          } catch (error) {
+            console.error("Error handling message:", error);
+            this.emit("error", { type: "message_handling_error", error });
+          }
+        });
+      } catch (error) {
+        console.error("Connection error:", error);
         reject(error);
-      });
-
-      this.ws.on("close", () => {
-        console.log("WebSocket connection closed");
-      });
-
-      this.ws.on("message", (data: Buffer) => {
-        this.handleMessage(data);
-      });
+      }
     });
+  }
+
+  private setupPingPong() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+    }
+
+    this.pingTimeout = setTimeout(() => {
+      console.log("Ping timeout - closing connection");
+      this.cleanupConnection();
+      this.handleReconnection();
+    }, this.pingTimeoutDuration);
+
+    // Handle incoming pings from server
+    if (this.ws) {
+      this.ws.on("ping", () => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.pong();
+          this.resetPingTimeout();
+        }
+      });
+    }
+  }
+
+  private resetPingTimeout() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+    }
+    this.setupPingPong();
+  }
+
+  private cleanupConnection() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws = null;
+    }
+  }
+
+  private async handleReconnection() {
+    if (
+      this.isReconnecting ||
+      this.reconnectAttempts >= this.maxReconnectAttempts
+    ) {
+      return;
+    }
+
+    this.isReconnecting = true;
+    this.reconnectAttempts++;
+
+    console.log(
+      `Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`
+    );
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, this.reconnectDelay));
+      await this.connect();
+    } catch (error) {
+      console.error("Reconnection failed:", error);
+      this.emit("error", { type: "reconnection_error", error });
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.handleReconnection();
+      } else {
+        this.emit("error", {
+          type: "max_reconnection_attempts_reached",
+          message: "Failed to reconnect after maximum attempts",
+        });
+      }
+    }
+  }
+  private validateInstruments(instruments: Instrument[]) {
+    if (!Array.isArray(instruments) || instruments.length === 0) {
+      throw new Error("Invalid instruments array");
+    }
+
+    if (instruments.length > 100) {
+      throw new Error(
+        "Maximum 100 instruments allowed per subscription request"
+      );
+    }
+
+    const totalSubscriptions =
+      this.getTotalSubscriptionCount() + instruments.length;
+    if (totalSubscriptions > 5000) {
+      throw new Error("Maximum subscription limit (5000) exceeded");
+    }
+  }
+
+  private getTotalSubscriptionCount(): number {
+    return Array.from(this.activeSubscriptions.values()).reduce(
+      (total, sub) => total + sub.instruments.length,
+      0
+    );
+  }
+
+  private getSubscriptionKey(instrument: Instrument): string {
+    return `${instrument[0]}_${instrument[1]}`;
+  }
+
+  subscribe(instruments: Instrument[], requestCode: number) {
+    try {
+      this.validateInstruments(instruments);
+
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        this.subscribeQueue.push({ instruments, requestCode });
+        this.connect().catch((error) => {
+          console.error("Failed to connect for subscription:", error);
+          throw error;
+        });
+        return;
+      }
+
+      const packet = this.createSubscriptionPacket(instruments, requestCode);
+      this.ws.send(JSON.stringify(packet));
+
+      // Store active subscriptions
+      instruments.forEach((instrument) => {
+        const key = this.getSubscriptionKey(instrument);
+        this.activeSubscriptions.set(key, {
+          instruments: [instrument],
+          requestCode,
+        });
+      });
+    } catch (error) {
+      console.error("Subscription error:", error);
+      this.emit("error", { type: "subscription_error", error });
+      throw error;
+    }
+  }
+
+  private async resubscribeAll() {
+    // First handle queued subscriptions
+    while (this.subscribeQueue.length > 0) {
+      const subscription = this.subscribeQueue.shift();
+      if (subscription) {
+        try {
+          await this.subscribe(
+            subscription.instruments,
+            subscription.requestCode
+          );
+        } catch (error) {
+          console.error("Failed to process queued subscription:", error);
+        }
+      }
+    }
+
+    // Then resubscribe active subscriptions
+    for (const [, subscription] of this.activeSubscriptions) {
+      try {
+        await this.subscribe(
+          subscription.instruments,
+          subscription.requestCode
+        );
+      } catch (error) {
+        console.error("Failed to resubscribe:", error);
+      }
+    }
+  }
+
+  unsubscribe(instruments: Instrument[]) {
+    try {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        throw new Error("WebSocket is not connected");
+      }
+
+      const packet = this.createSubscriptionPacket(instruments, 16); // Using unsubscribe request code
+      this.ws.send(JSON.stringify(packet));
+
+      // Remove from active subscriptions
+      instruments.forEach((instrument) => {
+        const key = this.getSubscriptionKey(instrument);
+        this.activeSubscriptions.delete(key);
+      });
+    } catch (error) {
+      console.error("Unsubscribe error:", error);
+      this.emit("error", { type: "unsubscribe_error", error });
+      throw error;
+    }
+  }
+
+  private handleError(error: Error) {
+    this.emit("error", { type: "websocket_error", error });
   }
 
   private handleMessage(data: Buffer) {
@@ -218,24 +458,6 @@ export class LiveFeed {
     this.emit("disconnected", disconnectionData);
   }
 
-  subscribe(instruments: Instrument[], requestCode: number) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error("WebSocket is not connected");
-    }
-
-    const packet = this.createSubscriptionPacket(instruments, requestCode);
-    this.ws.send(JSON.stringify(packet));
-  }
-
-  unsubscribe(instruments: Instrument[]) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error("WebSocket is not connected");
-    }
-
-    const packet = this.createSubscriptionPacket(instruments, 15);
-    this.ws.send(JSON.stringify(packet));
-  }
-
   private createSubscriptionPacket(
     instruments: Instrument[],
     requestCode: number
@@ -249,18 +471,22 @@ export class LiveFeed {
       })),
     };
   }
-
   close() {
+    this.subscribeQueue = [];
+    this.activeSubscriptions.clear();
+    this.cleanupConnection();
     if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+      try {
+        this.ws.close();
+      } catch (error) {
+        console.error("Error closing WebSocket:", error);
+      }
     }
   }
-
   // Event emitter functionality
   private listeners: {
     [event: string]: ((
-      data: LiveFeedResponse | DisconnectionResponse
+      data: LiveFeedResponse | DisconnectionResponse | any
     ) => void)[];
   } = {};
 
@@ -269,6 +495,7 @@ export class LiveFeed {
     event: "disconnected",
     listener: (data: DisconnectionResponse) => void
   ): void;
+  on(event: "error", listener: (error: any) => void): void;
   on(event: string, listener: (data: any) => void): void {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
@@ -276,13 +503,16 @@ export class LiveFeed {
     this.listeners[event].push(listener);
   }
 
-  private emit(
-    event: string,
-    data: LiveFeedResponse | DisconnectionResponse
-  ): void {
+  private emit(event: string, data: any): void {
     const eventListeners = this.listeners[event];
     if (eventListeners) {
-      eventListeners.forEach((listener) => listener(data));
+      eventListeners.forEach((listener) => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error(`Error in ${event} listener:`, error);
+        }
+      });
     }
   }
 }
