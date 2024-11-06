@@ -18,33 +18,305 @@ import {
 export class LiveFeed {
   private ws: WebSocket | null = null;
   private readonly config: DhanConfig;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private baseReconnectDelay: number = 2000; // Start with 2 seconds
+  private maxReconnectDelay: number = 60000; // Max 1 minute
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private pingInterval: NodeJS.Timeout | null = null;
+  private isIntentionalClose: boolean = false;
+  private subscribedInstruments: Map<number, Instrument[]> = new Map();
+  private connectionState:
+    | "disconnected"
+    | "connecting"
+    | "connected"
+    | "reconnecting" = "disconnected";
 
   constructor(config: DhanConfig) {
     this.config = config;
   }
 
-  connect(): Promise<void> {
+  private getReconnectDelay(): number {
+    // Exponential backoff with jitter
+    const exponentialDelay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay
+    );
+    // Add random jitter ±25%
+    const jitter = exponentialDelay * (0.75 + Math.random() * 0.5);
+    return Math.floor(jitter);
+  }
+
+  private setupPingInterval() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
+
+    // Send ping every 30 seconds to keep connection alive
+    this.pingInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.ping();
+        } catch (error: any) {
+          console.error("Ping failed:", error);
+          this.handleConnectionError(error);
+        }
+      }
+    }, 30000);
+  }
+
+  private cleanup() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    if (this.ws) {
+      try {
+        this.ws.terminate(); // Force close the connection
+      } catch (error) {
+        console.error("Error during cleanup:", error);
+      }
+      this.ws = null;
+    }
+  }
+
+  private async attemptReconnect() {
+    if (this.isIntentionalClose) {
+      console.log(
+        "Connection was intentionally closed, not attempting reconnect"
+      );
+      return;
+    }
+
+    if (
+      this.connectionState === "connecting" ||
+      this.connectionState === "reconnecting"
+    ) {
+      console.log("Already attempting to reconnect");
+      return;
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log("Max reconnection attempts reached");
+      this.emit(
+        "error",
+        new Error("Failed to reconnect after maximum attempts")
+      );
+      this.cleanup();
+      return;
+    }
+
+    this.connectionState = "reconnecting";
+    this.reconnectAttempts++;
+    const delay = this.getReconnectDelay();
+
+    console.log(
+      `Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    );
+
+    // Clear any existing timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    this.reconnectTimeout = setTimeout(async () => {
+      try {
+        this.cleanup(); // Clean up before attempting new connection
+        await this.connect();
+
+        // Only resubscribe if connection was successful
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          await this.resubscribeAll();
+          this.reconnectAttempts = 0; // Reset counter on successful reconnection
+          console.log("Successfully reconnected and resubscribed");
+        }
+      } catch (error: any) {
+        console.error("Reconnection attempt failed:", error);
+        this.handleConnectionError(error);
+      }
+    }, delay);
+  }
+
+  private async resubscribeAll() {
+    const subscriptions = Array.from(this.subscribedInstruments.entries());
+
+    for (const [requestCode, instruments] of subscriptions) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            reject(new Error("WebSocket not connected during resubscribe"));
+            return;
+          }
+
+          const packet = this.createSubscriptionPacket(
+            instruments,
+            requestCode
+          );
+          this.ws.send(JSON.stringify(packet), (error) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          });
+        });
+
+        // Add small delay between resubscriptions to avoid overwhelming the server
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        console.log(
+          `Resubscribed to ${instruments.length} instruments with request code ${requestCode}`
+        );
+      } catch (error) {
+        console.error(
+          `Failed to resubscribe to instruments with request code ${requestCode}:`,
+          error
+        );
+        throw error; // Propagate error to trigger reconnection
+      }
+    }
+  }
+
+  private handleConnectionError(error: Error) {
+    console.error("Connection error:", error);
+    this.emit("error", error);
+
+    if (!this.isIntentionalClose) {
+      this.attemptReconnect();
+    }
+  }
+
+  async connect(): Promise<void> {
+    if (
+      this.connectionState === "connecting" ||
+      this.connectionState === "connected"
+    ) {
+      console.log("Already connected or connecting");
+      return;
+    }
+
+    this.connectionState = "connecting";
+
     return new Promise((resolve, reject) => {
-      const url = `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
-      this.ws = new WebSocket(url);
+      try {
+        const url = `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
+        this.cleanup(); // Ensure clean slate before creating new connection
+        this.ws = new WebSocket(url, {
+          handshakeTimeout: 10000, // 10 second timeout for initial connection
+          headers: {
+            "User-Agent": "Mozilla/5.0", // Some servers require a user agent
+          },
+        });
 
-      this.ws.on("open", () => {
-        console.log("WebSocket connection established");
-        resolve();
-      });
+        // Set timeout for connection attempt
+        const connectionTimeout = setTimeout(() => {
+          if (this.connectionState !== "connected") {
+            const error = new Error("Connection timeout");
+            this.handleConnectionError(error);
+            reject(error);
+          }
+        }, 10000);
 
-      this.ws.on("error", (error) => {
-        console.error("WebSocket error:", error);
+        this.ws.on("open", () => {
+          clearTimeout(connectionTimeout);
+          console.log("WebSocket connection established");
+          this.connectionState = "connected";
+          this.setupPingInterval();
+          resolve();
+        });
+
+        this.ws.on("error", (error) => {
+          clearTimeout(connectionTimeout);
+          this.handleConnectionError(error);
+          reject(error);
+        });
+
+        this.ws.on("close", (code, reason) => {
+          clearTimeout(connectionTimeout);
+          this.connectionState = "disconnected";
+          console.log(
+            `WebSocket closed with code ${code} and reason: ${reason}`
+          );
+          this.emit("close", { code, reason: reason.toString() });
+
+          if (!this.isIntentionalClose) {
+            this.attemptReconnect();
+          }
+        });
+
+        this.ws.on("message", (data: Buffer) => {
+          try {
+            this.handleMessage(data);
+          } catch (error) {
+            console.error("Error handling message:", error);
+          }
+        });
+
+        this.ws.on("pong", () => {
+          // Reset connection timeout on pong response
+          if (this.ws) {
+            this.ws.removeAllListeners("timeout");
+            this.ws.once("timeout", () =>
+              this.handleConnectionError(new Error("Connection timeout"))
+            );
+          }
+        });
+      } catch (error) {
+        this.connectionState = "disconnected";
+        this.handleConnectionError(error as Error);
         reject(error);
-      });
+      }
+    });
+  }
 
-      this.ws.on("close", () => {
-        console.log("WebSocket connection closed");
-      });
+  subscribe(instruments: Instrument[], requestCode: number) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket is not connected");
+    }
 
-      this.ws.on("message", (data: Buffer) => {
-        this.handleMessage(data);
-      });
+    // Store subscription for reconnection
+    this.subscribedInstruments.set(requestCode, instruments);
+
+    const packet = this.createSubscriptionPacket(instruments, requestCode);
+    this.ws.send(JSON.stringify(packet), (error) => {
+      if (error) {
+        console.error("Error sending subscription:", error);
+        this.handleConnectionError(error);
+      }
+    });
+  }
+
+  unsubscribe(instruments: Instrument[]) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket is not connected");
+    }
+
+    const packet = this.createSubscriptionPacket(instruments, 15);
+    this.ws.send(JSON.stringify(packet), (error) => {
+      if (error) {
+        console.error("Error sending unsubscribe:", error);
+        this.handleConnectionError(error);
+      }
+    });
+
+    // Remove from stored subscriptions
+    this.subscribedInstruments.forEach((storedInstruments, requestCode) => {
+      const remainingInstruments = storedInstruments.filter(
+        (inst) =>
+          !instruments.some(
+            (unsubInst) => inst[0] === unsubInst[0] && inst[1] === unsubInst[1]
+          )
+      );
+
+      if (remainingInstruments.length === 0) {
+        this.subscribedInstruments.delete(requestCode);
+      } else {
+        this.subscribedInstruments.set(requestCode, remainingInstruments);
+      }
     });
   }
 
@@ -218,24 +490,6 @@ export class LiveFeed {
     this.emit("disconnected", disconnectionData);
   }
 
-  subscribe(instruments: Instrument[], requestCode: number) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error("WebSocket is not connected");
-    }
-
-    const packet = this.createSubscriptionPacket(instruments, requestCode);
-    this.ws.send(JSON.stringify(packet));
-  }
-
-  unsubscribe(instruments: Instrument[]) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error("WebSocket is not connected");
-    }
-
-    const packet = this.createSubscriptionPacket(instruments, 15);
-    this.ws.send(JSON.stringify(packet));
-  }
-
   private createSubscriptionPacket(
     instruments: Instrument[],
     requestCode: number
@@ -251,16 +505,19 @@ export class LiveFeed {
   }
 
   close() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    this.isIntentionalClose = true;
+    this.connectionState = "disconnected";
+    this.cleanup();
+    this.subscribedInstruments.clear();
   }
-
   // Event emitter functionality
   private listeners: {
     [event: string]: ((
-      data: LiveFeedResponse | DisconnectionResponse
+      data:
+        | LiveFeedResponse
+        | DisconnectionResponse
+        | Error
+        | { code: number; reason: string }
     ) => void)[];
   } = {};
 
@@ -281,9 +538,17 @@ export class LiveFeed {
     this.listeners[event].push(listener);
   }
 
+  private emit(event: "data", data: LiveFeedResponse): void;
+  private emit(event: "disconnected", data: DisconnectionResponse): void;
+  private emit(event: "error", data: Error): void;
+  private emit(event: "close", data: { code: number; reason: string }): void;
   private emit(
     event: string,
-    data: LiveFeedResponse | DisconnectionResponse
+    data:
+      | LiveFeedResponse
+      | DisconnectionResponse
+      | Error
+      | { code: number; reason: string }
   ): void {
     const eventListeners = this.listeners[event];
     if (eventListeners) {
