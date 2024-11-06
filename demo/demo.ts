@@ -276,8 +276,8 @@ async function demoLiveFeed() {
 
     const instruments: Instrument[] = [
       [ExchangeSegment.NSE_EQ, "7508"],
-      // [ExchangeSegment.NSE_EQ, "993"],
-      // [ExchangeSegment.NSE_EQ, "9931"],
+      [ExchangeSegment.NSE_EQ, "993"],
+      [ExchangeSegment.NSE_EQ, "9931"],
     ];
 
     dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
