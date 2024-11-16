@@ -170,40 +170,40 @@ async function demoEDIS() {
 async function demoMarketData() {
   console.log("\nDemonstrating Market Data API:");
 
-  const marketFeedRequest = {
-    NSE_EQ: [9362],
-  };
+  // const marketFeedRequest = {
+  //   NSE_EQ: [9362],
+  // };
 
   // Get LTP
-  const ltp = await dhanClient.marketData.getLTP(marketFeedRequest);
-  console.log("LTP:", ltp.data);
+  // const ltp = await dhanClient.marketData.getLTP(marketFeedRequest);
+  // console.log("LTP:", ltp.data);
 
   // Get OHLC
-  const ohlc = await dhanClient.marketData.getOHLC(marketFeedRequest);
-  console.log("OHLC:", ohlc.data.NSE_EQ);
+  // const ohlc = await dhanClient.marketData.getOHLC(marketFeedRequest);
+  // console.log("OHLC:", ohlc.data.NSE_EQ);
 
   // Get Quote
-  const quote = await dhanClient.marketData.getQuote(marketFeedRequest);
-  console.log("Quote:", quote.data.NSE_EQ);
+  // const quote = await dhanClient.marketData.getQuote(marketFeedRequest);
+  // console.log("Quote:", quote.data.NSE_EQ);
 
   // Get Historical Data (Candle)
 
-  const historical = await dhanClient.marketData.getDailyHistoricalData({
-    securityId: "19913",
-    exchangeSegment: ExchangeSegmentText.NSE_EQ,
-    instrument: InstrumentToken.EQUITY,
-    toDate: "2024-10-04",
-    fromDate: "2024-09-01",
-    expiryCode: 0,
-  });
-  console.log("Historical Data:", historical);
+  // const historical = await dhanClient.marketData.getDailyHistoricalData({
+  //   securityId: "19913",
+  //   exchangeSegment: ExchangeSegmentText.NSE_EQ,
+  //   instrument: InstrumentToken.EQUITY,
+  //   toDate: "2024-10-04",
+  //   fromDate: "2024-09-01",
+  //   expiryCode: 0,
+  // });
+  // console.log("Historical Data:", historical);
 
   // Get Intraday Data (Candle)
   const intraday = await dhanClient.marketData.getIntradayHistoricalData({
     securityId: "19913",
     exchangeSegment: ExchangeSegmentText.NSE_EQ,
     instrument: InstrumentToken.EQUITY,
-    interval: "1",
+    interval: "5",
     toDate: "2024-10-04",
     fromDate: "2024-10-01",
   });
@@ -349,8 +349,10 @@ async function allTimeFrameCandles() {
     expiryCode: 0,
     instrument: InstrumentToken.EQUITY,
     interval: TimeInterval.MIN_1,
-    securityId: "12032",
-    daysAgo: 0,
+    securityId: "19292",
+    // daysAgo: 0,
+    from: "2024-11-13",
+    to: "2024-11-13",
     isFree: true,
   });
 
@@ -367,9 +369,9 @@ async function runComprehensiveDemo() {
     // await demoForeverOrders();
     // await demoTradersControl();
     // await demoStatements();
-    await demoLiveFeed();
+    // await demoLiveFeed();
     // await demoLiveOrderUpdate();
-    // await allTimeFrameCandles();
+    await allTimeFrameCandles();
   } catch (error) {
     console.error("Error in demo:", error);
   }
