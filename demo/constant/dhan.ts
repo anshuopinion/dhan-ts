@@ -12065,3 +12065,7 @@ export const searchStockSymbols = (searchTerm: string) => {
     );
   });
 };
+
+export const searchBySecId = (secId: string) => {
+  return dhanStocks.find((stock) => stock.secId === secId);
+};

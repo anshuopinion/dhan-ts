@@ -275,12 +275,12 @@ async function demoLiveFeed() {
     console.log("WebSocket connection established");
 
     const instruments: Instrument[] = [
-      [ExchangeSegment.NSE_EQ, "7508"],
-      [ExchangeSegment.NSE_EQ, "993"],
-      [ExchangeSegment.NSE_EQ, "9931"],
+      // [ExchangeSegment.NSE_EQ, "7508"],
+      [ExchangeSegment.NSE_EQ, "11536"],
+      // [ExchangeSegment.NSE_EQ, "9931"],
     ];
 
-    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
+    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
     console.log("Subscribed to live feed");
 
     dhanFeed.liveFeed.on("data", (data) => {
@@ -302,6 +302,75 @@ async function demoLiveFeed() {
   }
 }
 
+async function demoLiveFeedMock() {
+  console.log("\nDemonstrating Mock Live Feed:");
+
+  try {
+    // Configure price ranges for all securities we'll subscribe to
+    dhanFeed.mockLiveFeed.setSecurityConfigs({
+      "7508": {
+        // Reliance
+        minPrice: 2300,
+        maxPrice: 2450,
+        volatility: 0.3,
+      },
+      "993": {
+        // State Bank of India
+        minPrice: 560,
+        maxPrice: 620,
+        volatility: 0.4,
+      },
+      "9931": {
+        // Example security
+        minPrice: 800,
+        maxPrice: 900,
+        volatility: 0.3,
+      },
+    });
+
+    // Connect to mock feed
+    await dhanFeed.mockLiveFeed.connect();
+    console.log("WebSocket connection established for mock live feed");
+
+    // Optional: Set custom market hours if needed
+    dhanFeed.mockLiveFeed.setMarketHours({
+      start: "00:00", // For testing: Allow all hours
+      end: "23:59",
+      days: [0, 1, 2, 3, 4, 5, 6], // Allow all days for testing
+    });
+
+    const instruments: Instrument[] = [
+      [ExchangeSegment.NSE_EQ, "7508"],
+      [ExchangeSegment.NSE_EQ, "993"],
+      [ExchangeSegment.NSE_EQ, "9931"],
+    ];
+
+    dhanFeed.mockLiveFeed.subscribe(
+      instruments,
+      FeedRequestCode.SUBSCRIBE_TICKER
+    );
+    console.log("Subscribed to mock live feed");
+
+    // Add timestamp to log output
+    dhanFeed.mockLiveFeed.on("data", (data) => {
+      const timestamp = new Date().toLocaleTimeString();
+      console.log(`[${timestamp}] Received mock live feed data:`, data);
+    });
+
+    dhanFeed.mockLiveFeed.on("error", (error) => {
+      console.error("Mock live feed error:", error);
+    });
+
+    // Add a graceful shutdown handler
+    process.on("SIGINT", () => {
+      console.log("\nGracefully shutting down mock feed...");
+      dhanFeed.mockLiveFeed.close();
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error("Error in mock live feed demo:", error);
+  }
+}
 async function demoLiveOrderUpdate() {
   // Not working for me
   console.log("\nDemonstrating Live Order Update:");
@@ -371,7 +440,8 @@ async function runComprehensiveDemo() {
     // await demoStatements();
     // await demoLiveFeed();
     // await demoLiveOrderUpdate();
-    await allTimeFrameCandles();
+    // await allTimeFrameCandles();
+    await demoLiveFeedMock();
   } catch (error) {
     console.error("Error in demo:", error);
   }
