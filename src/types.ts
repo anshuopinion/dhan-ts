@@ -442,8 +442,6 @@ export interface KillSwitchResponse {
   killSwitchStatus: string;
 }
 
-// ... (previous types remain the same)
-
 export interface LedgerEntry {
   dhanClientId: string;
   narration: string;
@@ -485,8 +483,6 @@ export interface TradeHistoryEntry {
   drvOptionType: DrvOptionType | null;
   drvStrikePrice: number;
 }
-
-// ... (previous types remain the same)
 
 export interface LiveOrderUpdate {
   Data: {

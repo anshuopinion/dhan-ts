@@ -46,9 +46,24 @@ async function demoOrders() {
   //   disclosedQuantity: 0,
   //   afterMarketOrder: false,
   // };
+  const orderRequest = {
+    securityId: "19813",
+    correlationId: "6e6fe8a0bb",
+    exchangeSegment: "NSE_EQ",
+    transactionType: "BUY",
+    quantity: 1,
+    orderType: "LIMIT",
+    productType: "INTRADAY",
+    validity: "DAY",
+    triggerPrice: 267.4662,
+    price: 267.6,
+    dhanClientId: config.clientId,
+    afterMarketOrder: false,
+    disclosedQuantity: 0,
+  };
 
-  // const placedOrder = await dhanClient.orders.placeOrder(orderRequest);
-  // console.log("Placed order:", placedOrder);
+  const placedOrder = await dhanClient.orders.placeOrder(orderRequest as any);
+  console.log("Placed order:", placedOrder);
 
   // Get all orders
   // const allOrders = await dhanClient.orders.getOrders();
@@ -275,12 +290,12 @@ async function demoLiveFeed() {
     console.log("WebSocket connection established");
 
     const instruments: Instrument[] = [
-      // [ExchangeSegment.NSE_EQ, "7508"],
-      [ExchangeSegment.NSE_EQ, "11536"],
+      [ExchangeSegment.NSE_EQ, "15266"],
+      // [ExchangeSegment.NSE_EQ, "11536"],
       // [ExchangeSegment.NSE_EQ, "9931"],
     ];
 
-    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
     console.log("Subscribed to live feed");
 
     dhanFeed.liveFeed.on("data", (data) => {
@@ -439,9 +454,9 @@ async function runComprehensiveDemo() {
     // await demoTradersControl();
     // await demoStatements();
     // await demoLiveFeed();
-    // await demoLiveOrderUpdate();
+    await demoLiveOrderUpdate();
     // await allTimeFrameCandles();
-    await demoLiveFeedMock();
+    // await demoLiveFeedMock();
   } catch (error) {
     console.error("Error in demo:", error);
   }
