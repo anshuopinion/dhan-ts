@@ -387,19 +387,29 @@ async function demoLiveFeedMock() {
   }
 }
 async function demoLiveOrderUpdate() {
-  // Not working for me
   console.log("\nDemonstrating Live Order Update:");
 
-  try {
-    await dhanFeed.liveOrderUpdate.connect();
-    console.log("WebSocket connection established for live order updates");
+  // Keep track of the connection state
+  let isConnected = false;
 
+  // Handle process termination gracefully
+  process.on("SIGINT", async () => {
+    console.log("\nGracefully shutting down...");
+    if (isConnected) {
+      dhanFeed.liveOrderUpdate.disconnect();
+    }
+    process.exit(0);
+  });
+
+  try {
+    // Set up event handlers before connecting
     dhanFeed.liveOrderUpdate.on("orderUpdate", (update) => {
       console.log("Received order update:", update);
     });
 
     dhanFeed.liveOrderUpdate.on("authenticated", () => {
       console.log("Successfully authenticated with the order update service");
+      isConnected = true;
     });
 
     dhanFeed.liveOrderUpdate.on("authError", (error) => {
@@ -408,21 +418,32 @@ async function demoLiveOrderUpdate() {
 
     dhanFeed.liveOrderUpdate.on("disconnected", ({ code, reason }) => {
       console.log(`Disconnected: ${code} - ${reason}`);
+      isConnected = false;
     });
 
     dhanFeed.liveOrderUpdate.on("error", (error) => {
       console.error("Live order update error:", error);
     });
 
+    // Connect to the WebSocket
+    await dhanFeed.liveOrderUpdate.connect();
+    console.log("WebSocket connection established for live order updates");
     console.log("Listening for order updates...");
 
-    // Keep the connection open for 30 seconds
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+    // Keep the process alive without using setTimeout
+    // This prevents the Node.js event loop from exiting
+    const keepAlive = new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (!isConnected) {
+          clearInterval(interval);
+          resolve(null);
+        }
+      }, 1000);
+    });
+
+    await keepAlive;
   } catch (error) {
     console.error("Error in live order update demo:", error);
-  } finally {
-    dhanFeed.liveOrderUpdate.disconnect();
-    console.log("Disconnected from live order updates");
   }
 }
 
