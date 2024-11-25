@@ -46,24 +46,24 @@ async function demoOrders() {
   //   disclosedQuantity: 0,
   //   afterMarketOrder: false,
   // };
-  const orderRequest = {
-    securityId: "19813",
-    correlationId: "6e6fe8a0bb",
-    exchangeSegment: "NSE_EQ",
-    transactionType: "BUY",
-    quantity: 1,
-    orderType: "LIMIT",
-    productType: "INTRADAY",
-    validity: "DAY",
-    triggerPrice: 267.4662,
-    price: 267.6,
-    dhanClientId: config.clientId,
-    afterMarketOrder: false,
-    disclosedQuantity: 0,
-  };
+  // const orderRequest = {
+  //   securityId: "19813",
+  //   correlationId: "6e6fe8a0bb",
+  //   exchangeSegment: "NSE_EQ",
+  //   transactionType: "BUY",
+  //   quantity: 1,
+  //   orderType: "LIMIT",
+  //   productType: "INTRADAY",
+  //   validity: "DAY",
+  //   triggerPrice: 267.4662,
+  //   price: 267.6,
+  //   dhanClientId: config.clientId,
+  //   afterMarketOrder: false,
+  //   disclosedQuantity: 0,
+  // };
 
-  const placedOrder = await dhanClient.orders.placeOrder(orderRequest as any);
-  console.log("Placed order:", placedOrder);
+  // const placedOrder = await dhanClient.orders.placeOrder(orderRequest as any);
+  // console.log("Placed order:", placedOrder);
 
   // Get all orders
   // const allOrders = await dhanClient.orders.getOrders();
@@ -389,62 +389,62 @@ async function demoLiveFeedMock() {
 async function demoLiveOrderUpdate() {
   console.log("\nDemonstrating Live Order Update:");
 
-  // Keep track of the connection state
-  let isConnected = false;
+  // // Keep track of the connection state
+  // let isConnected = false;
 
-  // Handle process termination gracefully
-  process.on("SIGINT", async () => {
-    console.log("\nGracefully shutting down...");
-    if (isConnected) {
-      dhanFeed.liveOrderUpdate.disconnect();
-    }
-    process.exit(0);
-  });
+  // // Handle process termination gracefully
+  // process.on("SIGINT", async () => {
+  //   console.log("\nGracefully shutting down...");
+  //   if (isConnected) {
+  //     dhanFeed.liveOrderUpdate.disconnect();
+  //   }
+  //   process.exit(0);
+  // });
 
-  try {
-    // Set up event handlers before connecting
-    dhanFeed.liveOrderUpdate.on("orderUpdate", (update) => {
-      console.log("Received order update:", update);
-    });
+  // try {
+  //   // Set up event handlers before connecting
+  //   dhanFeed.liveOrderUpdate.on("orderUpdate", (update) => {
+  //     console.log("Received order update:", update);
+  //   });
 
-    dhanFeed.liveOrderUpdate.on("authenticated", () => {
-      console.log("Successfully authenticated with the order update service");
-      isConnected = true;
-    });
+  //   dhanFeed.liveOrderUpdate.on("authenticated", () => {
+  //     console.log("Successfully authenticated with the order update service");
+  //     isConnected = true;
+  //   });
 
-    dhanFeed.liveOrderUpdate.on("authError", (error) => {
-      console.error("Authentication failed:", error.message);
-    });
+  //   dhanFeed.liveOrderUpdate.on("authError", (error) => {
+  //     console.error("Authentication failed:", error.message);
+  //   });
 
-    dhanFeed.liveOrderUpdate.on("disconnected", ({ code, reason }) => {
-      console.log(`Disconnected: ${code} - ${reason}`);
-      isConnected = false;
-    });
+  //   dhanFeed.liveOrderUpdate.on("disconnected", ({ code, reason }) => {
+  //     console.log(`Disconnected: ${code} - ${reason}`);
+  //     isConnected = false;
+  //   });
 
-    dhanFeed.liveOrderUpdate.on("error", (error) => {
-      console.error("Live order update error:", error);
-    });
+  //   dhanFeed.liveOrderUpdate.on("error", (error) => {
+  //     console.error("Live order update error:", error);
+  //   });
 
-    // Connect to the WebSocket
-    await dhanFeed.liveOrderUpdate.connect();
-    console.log("WebSocket connection established for live order updates");
-    console.log("Listening for order updates...");
+  //   // Connect to the WebSocket
+  //   await dhanFeed.liveOrderUpdate.connect();
+  //   console.log("WebSocket connection established for live order updates");
+  //   console.log("Listening for order updates...");
 
-    // Keep the process alive without using setTimeout
-    // This prevents the Node.js event loop from exiting
-    const keepAlive = new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (!isConnected) {
-          clearInterval(interval);
-          resolve(null);
-        }
-      }, 1000);
-    });
+  //   // Keep the process alive without using setTimeout
+  //   // This prevents the Node.js event loop from exiting
+  //   const keepAlive = new Promise((resolve) => {
+  //     const interval = setInterval(() => {
+  //       if (!isConnected) {
+  //         clearInterval(interval);
+  //         resolve(null);
+  //       }
+  //     }, 1000);
+  //   });
 
-    await keepAlive;
-  } catch (error) {
-    console.error("Error in live order update demo:", error);
-  }
+  //   await keepAlive;
+  // } catch (error) {
+  //   console.error("Error in live order update demo:", error);
+  // }
 }
 
 async function allTimeFrameCandles() {
