@@ -150,56 +150,7 @@ export class LiveOrderUpdateManager extends EventEmitter {
 
     // Handle order updates
     if (message.Type === "order_alert" && message.Data) {
-      const update: LiveOrderUpdate = {
-        Data: {
-          Exchange: message.Data.Exchange,
-          Segment: message.Data.Segment,
-          Source: message.Data.Source,
-          SecurityId: message.Data.SecurityId,
-          ClientId: message.Data.ClientId,
-          ExchOrderNo: message.Data.ExchOrderNo,
-          OrderNo: message.Data.OrderNo,
-          Product: message.Data.Product,
-          TxnType: message.Data.TxnType,
-          OrderType: message.Data.OrderType,
-          Validity: message.Data.Validity,
-          DiscQuantity: Number(message.Data.DiscQuantity),
-          DiscQtyRem: Number(message.Data.DiscQtyRem),
-          RemainingQuantity: Number(message.Data.RemainingQuantity),
-          Quantity: Number(message.Data.Quantity),
-          TradedQty: Number(message.Data.TradedQty),
-          Price: Number(message.Data.Price),
-          TriggerPrice: Number(message.Data.TriggerPrice),
-          TradedPrice: Number(message.Data.TradedPrice),
-          AvgTradedPrice: Number(message.Data.AvgTradedPrice),
-          AlgoOrdNo: message.Data.AlgoOrdNo,
-          OffMktFlag: message.Data.OffMktFlag,
-          OrderDateTime: message.Data.OrderDateTime,
-          ExchOrderTime: message.Data.ExchOrderTime,
-          LastUpdatedTime: message.Data.LastUpdatedTime,
-          Remarks: message.Data.Remarks,
-          MktType: message.Data.MktType,
-          ReasonDescription: message.Data.ReasonDescription,
-          LegNo: Number(message.Data.LegNo),
-          Instrument: message.Data.Instrument,
-          Symbol: message.Data.Symbol,
-          ProductName: message.Data.ProductName,
-          Status: message.Data.Status,
-          LotSize: Number(message.Data.LotSize),
-          StrikePrice: Number(message.Data.StrikePrice),
-          ExpiryDate: message.Data.ExpiryDate,
-          OptType: message.Data.OptType,
-          DisplayName: message.Data.DisplayName,
-          Isin: message.Data.Isin,
-          Series: message.Data.Series,
-          GoodTillDaysDate: message.Data.GoodTillDaysDate,
-          RefLtp: Number(message.Data.RefLtp),
-          TickSize: Number(message.Data.TickSize),
-          AlgoId: message.Data.AlgoId,
-          Multiplier: Number(message.Data.Multiplier),
-        },
-        Type: message.Type,
-      };
+      const update: LiveOrderUpdate = message;
 
       this.emit("orderUpdate", update);
 
