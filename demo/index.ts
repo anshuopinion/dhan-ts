@@ -46,9 +46,24 @@ async function demoOrders() {
   //   disclosedQuantity: 0,
   //   afterMarketOrder: false,
   // };
+  const orderRequest = {
+    securityId: "19813",
+    correlationId: "6e6fe8a0bb",
+    exchangeSegment: "NSE_EQ",
+    transactionType: "BUY",
+    quantity: 1,
+    orderType: "LIMIT",
+    productType: "INTRADAY",
+    validity: "DAY",
+    triggerPrice: 267.4662,
+    price: 267.6,
+    dhanClientId: config.clientId,
+    afterMarketOrder: false,
+    disclosedQuantity: 0,
+  };
 
-  // const placedOrder = await dhanClient.orders.placeOrder(orderRequest);
-  // console.log("Placed order:", placedOrder);
+  const placedOrder = await dhanClient.orders.placeOrder(orderRequest as any);
+  console.log("Placed order:", placedOrder);
 
   // Get all orders
   // const allOrders = await dhanClient.orders.getOrders();
@@ -275,12 +290,12 @@ async function demoLiveFeed() {
     console.log("WebSocket connection established");
 
     const instruments: Instrument[] = [
-      // [ExchangeSegment.NSE_EQ, "7508"],
-      [ExchangeSegment.NSE_EQ, "11536"],
+      [ExchangeSegment.NSE_EQ, "15266"],
+      // [ExchangeSegment.NSE_EQ, "11536"],
       // [ExchangeSegment.NSE_EQ, "9931"],
     ];
 
-    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+    dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
     console.log("Subscribed to live feed");
 
     dhanFeed.liveFeed.on("data", (data) => {
@@ -372,19 +387,29 @@ async function demoLiveFeedMock() {
   }
 }
 async function demoLiveOrderUpdate() {
-  // Not working for me
   console.log("\nDemonstrating Live Order Update:");
 
-  try {
-    await dhanFeed.liveOrderUpdate.connect();
-    console.log("WebSocket connection established for live order updates");
+  // Keep track of the connection state
+  let isConnected = false;
 
+  // Handle process termination gracefully
+  process.on("SIGINT", async () => {
+    console.log("\nGracefully shutting down...");
+    if (isConnected) {
+      dhanFeed.liveOrderUpdate.disconnect();
+    }
+    process.exit(0);
+  });
+
+  try {
+    // Set up event handlers before connecting
     dhanFeed.liveOrderUpdate.on("orderUpdate", (update) => {
       console.log("Received order update:", update);
     });
 
     dhanFeed.liveOrderUpdate.on("authenticated", () => {
       console.log("Successfully authenticated with the order update service");
+      isConnected = true;
     });
 
     dhanFeed.liveOrderUpdate.on("authError", (error) => {
@@ -393,21 +418,32 @@ async function demoLiveOrderUpdate() {
 
     dhanFeed.liveOrderUpdate.on("disconnected", ({ code, reason }) => {
       console.log(`Disconnected: ${code} - ${reason}`);
+      isConnected = false;
     });
 
     dhanFeed.liveOrderUpdate.on("error", (error) => {
       console.error("Live order update error:", error);
     });
 
+    // Connect to the WebSocket
+    await dhanFeed.liveOrderUpdate.connect();
+    console.log("WebSocket connection established for live order updates");
     console.log("Listening for order updates...");
 
-    // Keep the connection open for 30 seconds
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+    // Keep the process alive without using setTimeout
+    // This prevents the Node.js event loop from exiting
+    const keepAlive = new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (!isConnected) {
+          clearInterval(interval);
+          resolve(null);
+        }
+      }, 1000);
+    });
+
+    await keepAlive;
   } catch (error) {
     console.error("Error in live order update demo:", error);
-  } finally {
-    dhanFeed.liveOrderUpdate.disconnect();
-    console.log("Disconnected from live order updates");
   }
 }
 
@@ -439,9 +475,9 @@ async function runComprehensiveDemo() {
     // await demoTradersControl();
     // await demoStatements();
     // await demoLiveFeed();
-    // await demoLiveOrderUpdate();
+    await demoLiveOrderUpdate();
     // await allTimeFrameCandles();
-    await demoLiveFeedMock();
+    // await demoLiveFeedMock();
   } catch (error) {
     console.error("Error in demo:", error);
   }
