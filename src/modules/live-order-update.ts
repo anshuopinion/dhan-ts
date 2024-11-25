@@ -25,7 +25,7 @@ export class LiveOrderUpdateManager extends EventEmitter {
   private readonly config: LiveOrderUpdateConfig;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
-  private readonly reconnectDelay = 3000;
+  private readonly reconnectDelay = 60000;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private pingInterval: NodeJS.Timeout | null = null;
   private isIntentionalDisconnect = false;
@@ -87,7 +87,11 @@ export class LiveOrderUpdateManager extends EventEmitter {
         this.ws.on("message", (data: WebSocket.Data) => {
           try {
             const message = JSON.parse(data.toString());
+
             this.handleMessage(message);
+            if (!this.isIntentionalDisconnect) {
+              this.attemptReconnect();
+            }
           } catch (error) {
             console.error("Error parsing order update message:", error);
             this.emit(
