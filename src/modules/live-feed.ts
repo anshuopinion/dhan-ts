@@ -443,17 +443,20 @@ export class LiveFeed {
     };
 
     for (let i = 0; i < 5; i++) {
-      const offset = i * 20;
+      const offset = i * 20; // Each packet is 20 bytes
+
       const buyLevel: DepthLevel = {
-        quantity: data.readInt32LE(offset),
-        price: data.readFloatLE(offset + 12),
-        orders: data.readInt16LE(offset + 8),
+        quantity: data.readInt32LE(offset), // Bytes 1-4: Bid Quantity
+        orders: data.readInt16LE(offset + 8), // Bytes 9-10: No. of Bid Orders
+        price: data.readFloatLE(offset + 12), // Bytes 13-16: Bid Price
       };
+
       const sellLevel: DepthLevel = {
-        quantity: data.readInt32LE(offset + 4),
-        price: data.readFloatLE(offset + 16),
-        orders: data.readInt16LE(offset + 10),
+        quantity: data.readInt32LE(offset + 4), // Bytes 5-8: Ask Quantity
+        orders: data.readInt16LE(offset + 10), // Bytes 11-12: No. of Ask Orders
+        price: data.readFloatLE(offset + 16), // Bytes 17-20: Ask Price
       };
+
       depth.buy.push(buyLevel);
       depth.sell.push(sellLevel);
     }
