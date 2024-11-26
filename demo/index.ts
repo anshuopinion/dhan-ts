@@ -300,6 +300,12 @@ async function demoLiveFeed() {
 
     dhanFeed.liveFeed.on("data", (data) => {
       console.log("Received live feed data:", data);
+      // marekt depth
+      // console.table(data?.type);
+      // if ("marketDepth" in data) {
+      //   console.table(data?.marketDepth.buy);
+      //   console.table(data?.marketDepth.sell);
+      // }
     });
 
     dhanFeed.liveFeed.on("error", (error) => {
@@ -474,8 +480,8 @@ async function runComprehensiveDemo() {
     // await demoForeverOrders();
     // await demoTradersControl();
     // await demoStatements();
-    // await demoLiveFeed();
-    await demoLiveOrderUpdate();
+    await demoLiveFeed();
+    // await demoLiveOrderUpdate();
     // await allTimeFrameCandles();
     // await demoLiveFeedMock();
   } catch (error) {

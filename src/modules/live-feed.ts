@@ -430,7 +430,7 @@ export class LiveFeed {
       closePrice: data.readFloatLE(50),
       highPrice: data.readFloatLE(54),
       lowPrice: data.readFloatLE(58),
-      marketDepth: this.parseMarketDepth(data.slice(58)),
+      marketDepth: this.parseMarketDepth(data.slice(62, 162)),
     };
 
     return packet;
