@@ -248,7 +248,7 @@ async function demoLiveFeed() {
 			// [ExchangeSegment.NSE_EQ, "9931"],
 		];
 
-		dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
+		dhanFeed.liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_QUOTE);
 		console.log("Subscribed to live feed");
 
 		dhanFeed.liveFeed.on("data", data => {
