@@ -471,19 +471,22 @@ async function allTimeFrameCandles() {
 		exchangeSegment: ExchangeSegmentText.NSE_EQ,
 		expiryCode: 0,
 		instrument: InstrumentToken.EQUITY,
-		interval: TimeInterval.MIN_10,
-		securityId: "1235",
+		interval: TimeInterval.MIN_2,
+		securityId: "1041",
 		// daysAgo: 0,
-		from: "2024-12-10",
-		to: "2024-12-10",
-		// isFree: true,
+		from: "2024-12-27",
+		to: "2024-12-27",
+		isFree: true,
 	});
 
-	console.log("last 5 Close", historical.close.slice(-3));
-	console.log("time frame", historical.timestamp.slice(-3));
+	console.log("3 OPEN", historical.open.slice(0, 3));
+	console.log("3 High", historical.high.slice(0, 3));
+	console.log("3 Low", historical.low.slice(0, 3));
+	console.log("3 Close", historical.close.slice(0, 3));
+	// console.log("time frame", historical.timestamp.slice(0, 3));
 	console.log(
 		"time frame",
-		historical.timestamp.slice(-3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
+		historical.timestamp.slice(0, 3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
 	);
 }
 async function runComprehensiveDemo() {
@@ -493,11 +496,11 @@ async function runComprehensiveDemo() {
 		// await demoFunds();
 		// await demoEDIS();
 		// await demoMarketData();
-		// await allTimeFrameCandles();
+		await allTimeFrameCandles();
 		// await demoForeverOrders();
 		// await demoTradersControl();
 		// await demoStatements();
-		await demoLiveFeed();
+		// await demoLiveFeed();
 		// await demoLiveOrderUpdate();
 		// await demoLiveFeedMock();
 	} catch (error) {
