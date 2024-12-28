@@ -28,21 +28,6 @@ export class FreeMarketData {
 				END: this.dateToTimestamp(request.toDate, true),
 				INTERVAL: request.interval,
 			};
-			console.log(
-				"From:",
-				new Date(this.dateToTimestamp(request.fromDate, false) * 1000).toLocaleString("en-IN", {
-					timeZone: "Asia/Kolkata",
-				})
-			);
-
-			console.log(
-				"End:",
-				new Date(this.dateToTimestamp(request.toDate, true) * 1000).toLocaleString("en-IN", {
-					timeZone: "Asia/Kolkata",
-				})
-			);
-
-			console.log("dhanRequest", dhanRequest);
 
 			const response = await axios.post<DhanApiResponse>(`${this.DHAN_API_URL}/getData`, dhanRequest, {
 				headers: this.getApiHeaders(),
@@ -60,10 +45,7 @@ export class FreeMarketData {
 				close: response.data.data.c || [],
 				volume: response.data.data.v || [],
 			};
-			console.log(
-				"time frame",
-				transformedData.timestamp.slice(0, 3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
-			);
+
 			return transformedData;
 		} catch (error: any) {
 			console.error("Error fetching intraday data:", error);

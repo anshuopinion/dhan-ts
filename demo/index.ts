@@ -451,27 +451,13 @@ async function demoMarketData() {
 	);
 }
 
-// MIN_1 = "1m",
-// MIN_2 = "2m",
-// MIN_3 = "3m",
-// MIN_4 = "4m",
-// MIN_5 = "5m",
-// MIN_10 = "10m",
-// MIN_15 = "15m",
-// MIN_30 = "30m",
-// MIN_45 = "45m",
-// HOUR_1 = "60m",
-// HOUR_2 = "120m",
-// HOUR_3 = "180m",
-// HOUR_4 = "240m",
-
 async function allTimeFrameCandles() {
 	// Combined all time frame candles
 	const historical = await dhanClient.marketData.getProcessedCandleData({
 		exchangeSegment: ExchangeSegmentText.NSE_EQ,
 		expiryCode: 0,
 		instrument: InstrumentToken.EQUITY,
-		interval: TimeInterval.MIN_5,
+		interval: TimeInterval.MIN_10,
 		securityId: "1041",
 		// daysAgo: 0,
 		from: "2024-12-27",
@@ -479,14 +465,14 @@ async function allTimeFrameCandles() {
 		isFree: true,
 	});
 
-	console.log("3 OPEN", historical.open.slice(0, 3));
-	console.log("3 High", historical.high.slice(0, 3));
-	console.log("3 Low", historical.low.slice(0, 3));
-	console.log("3 Close", historical.close.slice(0, 3));
+	console.log("3 OPEN", historical.open.slice(-3));
+	console.log("3 High", historical.high.slice(-3));
+	console.log("3 Low", historical.low.slice(-3));
+	console.log("3 Close", historical.close.slice(-3));
 	// console.log("time frame", historical.timestamp.slice(0, 3));
 	console.log(
 		"time frame",
-		historical.timestamp.slice(0, 3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
+		historical.timestamp.slice(-3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
 	);
 }
 async function runComprehensiveDemo() {
