@@ -129,8 +129,10 @@ export class MarketData {
 
 		const {baseInterval, multiplier} = intervalInfo;
 
-		// Market opening time 9:15 AM IST
-		const marketOpenTime = Math.floor(data.timestamp[0] / (baseInterval * 60)) * (baseInterval * 60);
+		// Hardcode market opening time to 9:15 using the date from first timestamp
+		const date = new Date(data.timestamp[0] * 1000);
+		date.setHours(9, 15, 0, 0);
+		const marketOpenTime = Math.floor(date.getTime() / 1000);
 
 		let currentGroup = {
 			open: 0,
@@ -138,7 +140,7 @@ export class MarketData {
 			low: Infinity,
 			close: 0,
 			volume: 0,
-			timestamp: 0,
+			timestamp: marketOpenTime, // Start with market open time
 			count: 0,
 		};
 
@@ -149,21 +151,22 @@ export class MarketData {
 			const bucketIndex = Math.floor(minutesSinceMarketOpen / baseInterval);
 			const bucketTimestamp = marketOpenTime + bucketIndex * baseInterval * 60;
 
-			if (currentGroup.timestamp === null) {
-				currentGroup.timestamp = bucketTimestamp;
+			if (currentGroup.count === 0) {
+				// First candle in the group
 				currentGroup.open = data.open[i];
-			}
-
-			if (currentGroup.timestamp !== bucketTimestamp) {
+				currentGroup.high = data.high[i];
+				currentGroup.low = data.low[i];
+				currentGroup.close = data.close[i];
+				currentGroup.volume = data.volume[i];
+				currentGroup.count = 1;
+			} else if (currentGroup.timestamp !== bucketTimestamp) {
 				// Push completed group
-				if (currentGroup.count > 0) {
-					result.open.push(currentGroup.open);
-					result.high.push(currentGroup.high);
-					result.low.push(currentGroup.low);
-					result.close.push(currentGroup.close);
-					result.volume.push(currentGroup.volume);
-					result.timestamp.push(currentGroup.timestamp);
-				}
+				result.open.push(currentGroup.open);
+				result.high.push(currentGroup.high);
+				result.low.push(currentGroup.low);
+				result.close.push(currentGroup.close);
+				result.volume.push(currentGroup.volume);
+				result.timestamp.push(currentGroup.timestamp);
 
 				// Start new group
 				currentGroup = {

@@ -471,7 +471,7 @@ async function allTimeFrameCandles() {
 		exchangeSegment: ExchangeSegmentText.NSE_EQ,
 		expiryCode: 0,
 		instrument: InstrumentToken.EQUITY,
-		interval: TimeInterval.MIN_2,
+		interval: TimeInterval.MIN_5,
 		securityId: "1041",
 		// daysAgo: 0,
 		from: "2024-12-27",
