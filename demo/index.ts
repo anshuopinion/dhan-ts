@@ -457,7 +457,7 @@ async function allTimeFrameCandles() {
 		exchangeSegment: ExchangeSegmentText.NSE_EQ,
 		expiryCode: 0,
 		instrument: InstrumentToken.EQUITY,
-		interval: TimeInterval.MIN_10,
+		interval: TimeInterval.MIN_2,
 		securityId: "1041",
 		// daysAgo: 0,
 		from: "2024-12-27",
@@ -465,14 +465,15 @@ async function allTimeFrameCandles() {
 		isFree: true,
 	});
 
-	console.log("3 OPEN", historical.open.slice(-3));
-	console.log("3 High", historical.high.slice(-3));
-	console.log("3 Low", historical.low.slice(-3));
-	console.log("3 Close", historical.close.slice(-3));
+	console.log("3 OPEN", historical.open.slice(0, 3));
+	console.log("3 High", historical.high.slice(0, 3));
+	console.log("3 Low", historical.low.slice(0, 3));
+	console.log("3 Close", historical.close.slice(0, 3));
+	console.log("3 Volume", historical.volume.slice(0, 3));
 	// console.log("time frame", historical.timestamp.slice(0, 3));
 	console.log(
 		"time frame",
-		historical.timestamp.slice(-3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
+		historical.timestamp.slice(0, 3).map((time: number) => new Date(time * 1000).toLocaleTimeString())
 	);
 }
 async function runComprehensiveDemo() {
