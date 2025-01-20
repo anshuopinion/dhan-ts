@@ -1,6 +1,6 @@
 import {AxiosInstance} from "axios";
 import {MarketFeedRequest, HistoricalDataRequest, IntradayDataRequest, HistoricalDataResponse, TimeInterval, Candle} from "../types";
-import {subDays, setHours, setMinutes, isWeekend, isBefore, parseISO, isAfter, getDay} from "date-fns";
+import {subDays, setHours, setMinutes, isWeekend, isBefore, parseISO, isAfter, getDay, addDays} from "date-fns";
 import {toZonedTime, toDate, formatInTimeZone} from "date-fns-tz";
 import {FreeMarketData} from "../free/FreeMarketData";
 
@@ -47,19 +47,29 @@ export class MarketData {
 		const {interval, from, to, daysAgo, ...baseRequest} = request;
 		let fromDate: Date, toDate: Date;
 
-		toDate = this.getLatestValidMarketDate();
-
-		if (from && to) {
-			fromDate = parseISO(from);
-			toDate = parseISO(to);
-		} else if (daysAgo !== undefined) {
-			fromDate = subDays(toDate, daysAgo);
+		// Handle 'to' date first
+		if (to) {
+			// If 'to' date is provided, use it as the base
+			toDate = this.getValidTradingDay(parseISO(to), "backward");
 		} else {
+			// Otherwise use the latest valid market date
+			toDate = this.getLatestValidMarketDate();
+		}
+
+		// Handle 'from' date based on different scenarios
+		if (from && to) {
+			// Scenario 1: Both from and to dates provided
+			fromDate = this.getValidTradingDay(parseISO(from), "forward");
+		} else if (daysAgo !== undefined) {
+			// Count back by trading days, skipping holidays and weekends
+			fromDate = this.getPreviousNthTradingDay(toDate, daysAgo);
+		} else {
+			// Scenario 3: Default behavior based on interval
 			if (this.isIntradayInterval(interval)) {
 				// For intraday, fetch last 4 trading days + today
 				fromDate = this.getLastNthTradingDay(toDate, 4);
 			} else {
-				// For historical, fetch from inception (use a very old date)
+				// For historical, fetch from inception
 				fromDate = new Date("1970-01-01");
 			}
 		}
@@ -104,19 +114,6 @@ export class MarketData {
 		return interval.endsWith("m");
 	}
 
-	private getLastNthTradingDay(fromDate: Date, n: number): Date {
-		let currentDate = fromDate;
-		let tradingDaysCount = 0;
-
-		while (tradingDaysCount < n) {
-			currentDate = subDays(currentDate, 1);
-			if (this.isValidTradingDay(currentDate)) {
-				tradingDaysCount++;
-			}
-		}
-
-		return currentDate;
-	}
 	private combineIntradayCandles(data: HistoricalDataResponse, intervalInfo: {baseInterval: number; multiplier: number}): HistoricalDataResponse {
 		const result: HistoricalDataResponse = {
 			open: [],
@@ -371,14 +368,87 @@ export class MarketData {
 		}
 		return lastFriday;
 	}
-	private isValidTradingDay(date: Date): boolean {
-		const kolkataDate = toZonedTime(date, this.kolkataTimeZone);
-		return !isWeekend(kolkataDate);
-		// Note: This doesn't account for holidays. You may want to add a holiday calendar check here.
+
+	private getValidTradingDay(date: Date, direction: "forward" | "backward"): Date {
+		const maxIterations = 10; // Prevent infinite loops
+		let currentDate = toZonedTime(date, this.kolkataTimeZone);
+		let iterations = 0;
+
+		while (!this.isValidTradingDay(currentDate) && iterations < maxIterations) {
+			if (direction === "forward") {
+				currentDate = addDays(currentDate, 1);
+			} else {
+				currentDate = subDays(currentDate, 1);
+			}
+			iterations++;
+		}
+
+		return toDate(currentDate, {timeZone: this.kolkataTimeZone});
 	}
 
-	private getApiInterval(timestamps: number[]): number {
-		if (timestamps.length < 2) return 1440; // Assume daily if not enough data
-		return (timestamps[1] - timestamps[0]) / 60; // Convert seconds to minutes
+	private isHoliday(date: Date): boolean {
+		const holidays: string[] = [
+			"2025-02-26", // Mahashivratri
+			"2025-03-14", // Holi
+			"2025-03-31", // Id-Ul-Fitr (Ramadan Eid)
+			"2025-04-10", // Shri Mahavir Jayanti
+			"2025-04-14", // Dr. Baba Saheb Ambedkar Jayanti
+			"2025-04-18", // Good Friday
+			"2025-05-01", // Maharashtra Day
+			"2025-08-15", // Independence Day
+			"2025-08-27", // Ganesh Chaturthi
+			"2025-10-02", // Mahatma Gandhi Jayanti/Dussehra
+			"2025-10-21", // Diwali Laxmi Pujan
+			"2025-10-22", // Balipratipada
+			"2025-11-05", // Prakash Gurpurb Sri Guru Nanak Dev
+			"2025-12-25", // Christmas
+		];
+
+		const dateStr = formatInTimeZone(date, this.kolkataTimeZone, "yyyy-MM-dd");
+		return holidays.includes(dateStr);
+	}
+	private isValidTradingDay(date: Date): boolean {
+		const kolkataDate = toZonedTime(date, this.kolkataTimeZone);
+
+		// Check for weekends
+		if (isWeekend(kolkataDate)) {
+			return false;
+		}
+
+		// Check for holidays (implement your holiday calendar logic here)
+		if (this.isHoliday(kolkataDate)) {
+			return false;
+		}
+
+		return true;
+	}
+	private getPreviousNthTradingDay(fromDate: Date, n: number): Date {
+		let currentDate = toZonedTime(fromDate, this.kolkataTimeZone);
+		let tradingDaysFound = 0;
+
+		while (tradingDaysFound < n) {
+			// Move back one calendar day
+			currentDate = subDays(currentDate, 1);
+			// Only increment counter if it's a valid trading day
+			if (this.isValidTradingDay(currentDate)) {
+				tradingDaysFound++;
+			}
+		}
+
+		return toDate(currentDate, {timeZone: this.kolkataTimeZone});
+	}
+
+	private getLastNthTradingDay(fromDate: Date, n: number): Date {
+		let currentDate = toZonedTime(fromDate, this.kolkataTimeZone);
+		let tradingDaysFound = 0;
+
+		while (tradingDaysFound < n) {
+			currentDate = subDays(currentDate, 1);
+			if (this.isValidTradingDay(currentDate)) {
+				tradingDaysFound++;
+			}
+		}
+
+		return toDate(currentDate, {timeZone: this.kolkataTimeZone});
 	}
 }
