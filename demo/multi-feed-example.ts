@@ -1,5 +1,5 @@
 import {DhanFeed} from "../src/dhan-feed";
-import {DhanConfig, DhanEnv} from "../src/types";
+import {DhanConfig, DhanEnv, ExchangeSegment, Instrument} from "../src/types";
 
 // Example usage of MultiConnectionLiveFeed for handling large number of instruments
 const config: DhanConfig = {
@@ -17,10 +17,10 @@ async function main() {
 	const dhanFeed4 = new DhanFeed(config); // For Strategy 4
 
 	// Create sample instruments (2000 stocks example)
-	const createSampleInstruments = (start: number, count: number) => {
-		const instruments = [];
+	const createSampleInstruments = (start: number, count: number): Instrument[] => {
+		const instruments: Instrument[] = [];
 		for (let i = start; i < start + count; i++) {
-			instruments.push(["NSE_EQ", i.toString()]);
+			instruments.push([ExchangeSegment.NSE_EQ, i.toString()]);
 		}
 		return instruments;
 	};
