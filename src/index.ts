@@ -10,3 +10,5 @@ export * from "./modules/forever-orders";
 export * from "./modules/traders-control";
 export * from "./modules/statements";
 export * from "./modules/scanner-feed";
+export * from "./modules/live-feed";
+export * from "./modules/multi-connection-live-feed";
