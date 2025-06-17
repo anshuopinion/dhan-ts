@@ -14,6 +14,13 @@ import {
 	FullMarketDataResponse,
 	MarketDepthResponse,
 	DepthLevel,
+	FeedRequestCode,
+	FeedResponseCode,
+	TradingApiErrorCode,
+	DataApiErrorCode,
+	DhanApiError,
+	FeedErrorResponse,
+	FeedDisconnectionResponse,
 } from "../types";
 
 interface ConnectionInfo {
@@ -102,56 +109,109 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	 * Subscribe to instruments with automatic batching and connection management
 	 */
 	async subscribe(instruments: Instrument[], requestCode: number): Promise<void> {
-		if (instruments.length === 0) {
+		// Validate inputs
+		if (!instruments || instruments.length === 0) {
+			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, "No instruments provided for subscription");
+			this.emit("error", { connectionId: -1, error });
 			throw new Error("No instruments provided for subscription");
+		}
+
+		// Validate request code
+		const validRequestCodes = [
+			FeedRequestCode.SUBSCRIBE_TICKER,
+			FeedRequestCode.SUBSCRIBE_QUOTE,
+			FeedRequestCode.SUBSCRIBE_FULL,
+			FeedRequestCode.SUBSCRIBE_MARKET_DEPTH,
+		];
+		
+		if (!validRequestCodes.includes(requestCode)) {
+			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid request code: ${requestCode}`);
+			this.emit("error", { connectionId: -1, error });
+			throw new Error(`Invalid request code: ${requestCode}. Valid codes: ${validRequestCodes.join(", ")}`);
+		}
+
+		// Validate instruments format
+		for (let i = 0; i < instruments.length; i++) {
+			const instrument = instruments[i];
+			if (!Array.isArray(instrument) || instrument.length !== 2) {
+				const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid instrument format at index ${i}: ${JSON.stringify(instrument)}`);
+				this.emit("error", { connectionId: -1, error });
+				throw new Error(`Invalid instrument format at index ${i}. Expected [ExchangeSegment, SecurityId]`);
+			}
+
+			const [exchangeSegment, securityId] = instrument;
+			if (typeof exchangeSegment !== 'number' || typeof securityId !== 'string') {
+				const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_SECURITY_ID, `Invalid instrument data at index ${i}: exchangeSegment must be number, securityId must be string`);
+				this.emit("error", { connectionId: -1, error });
+				throw new Error(`Invalid instrument data at index ${i}: exchangeSegment must be number, securityId must be string`);
+			}
+		}
+
+		// Check instrument limit
+		if (instruments.length > (this.maxConnections * this.maxInstrumentsPerConnection)) {
+			const maxAllowed = this.maxConnections * this.maxInstrumentsPerConnection;
+			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INSTRUMENT_LIMIT_EXCEEDED, `Requested ${instruments.length} instruments exceeds maximum limit of ${maxAllowed}`);
+			this.emit("error", { connectionId: -1, error });
+			throw new Error(`Requested ${instruments.length} instruments exceeds maximum limit of ${maxAllowed}`);
 		}
 
 		console.log(`Subscribing to ${instruments.length} instruments with request code ${requestCode}`);
 
-		// Find or create a connection that can handle these instruments
-		const connectionId = this.findAvailableConnection(instruments.length);
-		const connection = this.connections.get(connectionId)!;
+		try {
+			// Find or create a connection that can handle these instruments
+			const connectionId = this.findAvailableConnection(instruments.length);
+			const connection = this.connections.get(connectionId)!;
 
-		// Split instruments into batches
-		const batches = this.splitIntoBatches(instruments);
-		console.log(`Split ${instruments.length} instruments into ${batches.length} batches`);
+			// Split instruments into batches
+			const batches = this.splitIntoBatches(instruments);
+			console.log(`Split ${instruments.length} instruments into ${batches.length} batches`);
 
-		// Store batches for this request code
-		connection.subscribedBatches.set(requestCode, batches);
-		connection.instrumentCount += instruments.length;
+			// Store batches for this request code
+			connection.subscribedBatches.set(requestCode, batches);
+			connection.instrumentCount += instruments.length;
 
-		// Ensure connection is established
-		if (!connection.ws || connection.ws.readyState !== WebSocket.OPEN) {
-			await this.connectToFeed(connectionId);
-		}
-
-		// Send subscription messages for each batch
-		for (let i = 0; i < batches.length; i++) {
-			const batch = batches[i];
-			console.log(`Sending batch ${i + 1}/${batches.length} with ${batch.length} instruments`);
-			
-			const packet = this.createSubscriptionPacket(batch, requestCode);
-			
-			if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
-				connection.ws.send(JSON.stringify(packet), (error) => {
-					if (error) {
-						console.error(`Error sending batch ${i + 1}:`, error);
-						this.emit("error", error);
-					} else {
-						console.log(`Successfully sent batch ${i + 1}/${batches.length}`);
-					}
-				});
-
-				// Add small delay between batches to avoid overwhelming the server
-				if (i < batches.length - 1) {
-					await new Promise(resolve => setTimeout(resolve, 100));
-				}
-			} else {
-				throw new Error(`Connection ${connectionId} is not ready for subscription`);
+			// Ensure connection is established
+			if (!connection.ws || connection.ws.readyState !== WebSocket.OPEN) {
+				await this.connectToFeed(connectionId);
 			}
-		}
 
-		console.log(`Successfully subscribed to ${instruments.length} instruments across ${batches.length} batches on connection ${connectionId}`);
+			// Send subscription messages for each batch
+			for (let i = 0; i < batches.length; i++) {
+				const batch = batches[i];
+				console.log(`Sending batch ${i + 1}/${batches.length} with ${batch.length} instruments`);
+				
+				const packet = this.createSubscriptionPacket(batch, requestCode);
+				
+				if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
+					connection.ws.send(JSON.stringify(packet), (error) => {
+						if (error) {
+							console.error(`Error sending batch ${i + 1}:`, error);
+							this.analyzeConnectionError(connectionId, error);
+							this.emit("error", { connectionId, error });
+						} else {
+							console.log(`Successfully sent batch ${i + 1}/${batches.length}`);
+						}
+					});
+
+					// Add small delay between batches to avoid overwhelming the server
+					if (i < batches.length - 1) {
+						await new Promise(resolve => setTimeout(resolve, 100));
+					}
+				} else {
+					const error = this.createDhanApiError("DataApi", DataApiErrorCode.INTERNAL_SERVER_ERROR, `Connection ${connectionId} is not ready for subscription`);
+					this.emit("error", { connectionId, error });
+					throw new Error(`Connection ${connectionId} is not ready for subscription`);
+				}
+			}
+
+			console.log(`Successfully subscribed to ${instruments.length} instruments across ${batches.length} batches on connection ${connectionId}`);
+		} catch (error) {
+			console.error("Subscription error:", error);
+			if (error instanceof Error) {
+				this.analyzeConnectionError(-1, error);
+			}
+			throw error;
+		}
 	}
 
 	/**
@@ -209,6 +269,10 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					clearTimeout(connectionTimeout);
 					console.error(`WebSocket connection ${connectionId} error:`, error);
 					connection.connectionState = "disconnected";
+					
+					// Check if error is related to authentication or API limits
+					this.analyzeConnectionError(connectionId, error);
+					
 					this.handleConnectionError(connectionId, error);
 					reject(error);
 				});
@@ -363,36 +427,129 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		let parsedData: LiveFeedResponse | null = null;
 
 		switch (responseCode) {
-			case 2:
+			case FeedResponseCode.TICKER:
 				parsedData = this.parseTickerPacket(data);
 				break;
-			case 4:
+			case FeedResponseCode.QUOTE:
 				parsedData = this.parseQuotePacket(data);
 				break;
-			case 5:
+			case FeedResponseCode.OI:
 				parsedData = this.parseOIDataPacket(data);
 				break;
-			case 6:
+			case FeedResponseCode.PREV_CLOSE:
 				parsedData = this.parsePrevClosePacket(data);
 				break;
-			case 8:
+			case FeedResponseCode.FULL:
 				parsedData = this.parseFullMarketDataPacket(data);
 				break;
-			case 7:
+			case FeedResponseCode.MARKET_STATUS:
 				parsedData = this.parseMarketStatusPacket(data);
 				break;
-			case 50:
+			case FeedResponseCode.FEED_DISCONNECT:
 				const disconnectionData = this.parseDisconnectionPacket(data);
-				this.emit("disconnection", { connectionId, ...disconnectionData });
+				this.handleFeedDisconnection(connectionId, disconnectionData);
 				return;
 			default:
-				console.warn(`Unknown response code: ${responseCode}`);
+				// Check if it's a JSON error response
+				try {
+					const jsonString = data.toString('utf8');
+					const jsonData = JSON.parse(jsonString);
+					
+					// Handle JSON error responses
+					if (jsonData.error || jsonData.errorCode) {
+						this.handleJsonErrorResponse(connectionId, jsonData);
+						return;
+					}
+				} catch (e) {
+					// Not JSON, continue with binary error handling
+				}
+
+				// Handle binary error responses
+				if (data.length >= 4) {
+					const potentialErrorCode = data.readUInt16LE(2);
+					if (potentialErrorCode >= 800 && potentialErrorCode <= 814) {
+						this.handleDataApiError(connectionId, potentialErrorCode);
+						return;
+					}
+				}
+
+				console.warn(`Connection ${connectionId}: Unknown response code: ${responseCode}, data length: ${data.length}`);
+				this.handleUnknownResponse(connectionId, responseCode, data);
 				return;
 		}
 
 		if (parsedData) {
 			this.emit("message", { connectionId, data: parsedData });
 		}
+	}
+
+	/**
+	 * Handle JSON error responses
+	 */
+	private handleJsonErrorResponse(connectionId: number, jsonData: any): void {
+		const errorCode = jsonData.errorCode || jsonData.error?.code;
+		const errorMessage = jsonData.errorMessage || jsonData.error?.message || jsonData.message;
+		
+		console.error(`Connection ${connectionId} JSON Error Response:`, jsonData);
+
+		// Create error response
+		const errorResponse: FeedErrorResponse = {
+			type: "error",
+			errorCode: errorCode || 0,
+			errorMessage: errorMessage || "Unknown error",
+			connectionId: connectionId.toString(),
+			timestamp: Date.now(),
+		};
+
+		// Handle based on error code
+		if (typeof errorCode === 'number' && errorCode >= 800 && errorCode <= 814) {
+			this.handleDataApiError(connectionId, errorCode, jsonData);
+		} else if (typeof errorCode === 'string' && errorCode.startsWith('DH-')) {
+			this.handleTradingApiError(connectionId, errorCode, jsonData);
+		} else {
+			// Generic error handling
+			this.emit("error", { connectionId, error: errorResponse });
+		}
+
+		this.emit("message", { connectionId, data: errorResponse });
+	}
+
+	/**
+	 * Handle feed disconnection
+	 */
+	private handleFeedDisconnection(connectionId: number, disconnectionData: DisconnectionResponse): void {
+		const feedDisconnection: FeedDisconnectionResponse = {
+			type: "disconnection",
+			errorCode: disconnectionData.errorCode,
+			reason: disconnectionData.reason,
+			connectionId: connectionId.toString(),
+			timestamp: Date.now(),
+		};
+
+		console.warn(`Connection ${connectionId} Feed Disconnection [${disconnectionData.errorCode}]: ${disconnectionData.reason}`);
+
+		// Handle specific disconnection error codes
+		if (disconnectionData.errorCode >= 800 && disconnectionData.errorCode <= 814) {
+			this.handleDataApiError(connectionId, disconnectionData.errorCode);
+		}
+
+		this.emit("disconnection", { connectionId, ...disconnectionData });
+		this.emit("message", { connectionId, data: feedDisconnection });
+	}
+
+	/**
+	 * Handle unknown responses
+	 */
+	private handleUnknownResponse(connectionId: number, responseCode: number, data: Buffer): void {
+		const errorResponse: FeedErrorResponse = {
+			type: "error",
+			errorCode: responseCode,
+			errorMessage: `Unknown response code: ${responseCode}`,
+			connectionId: connectionId.toString(),
+			timestamp: Date.now(),
+		};
+
+		this.emit("message", { connectionId, data: errorResponse });
 	}
 
 	/**
@@ -403,7 +560,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			RequestCode: requestCode,
 			InstrumentCount: instruments.length,
 			InstrumentList: instruments.map(([exchangeSegment, securityId]) => ({
-				ExchangeSegment: ExchangeSegment[exchangeSegment],
+				ExchangeSegment: exchangeSegment, // Use the enum value directly
 				SecurityId: securityId,
 			})),
 		};
@@ -412,17 +569,35 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	/**
 	 * Unsubscribe from instruments
 	 */
-	async unsubscribe(instruments: Instrument[]): Promise<void> {
+	async unsubscribe(instruments: Instrument[], requestCode?: number): Promise<void> {
+		// Default to ticker unsubscribe if no request code provided
+		const unsubscribeCode = requestCode || FeedRequestCode.UNSUBSCRIBE_TICKER;
+		
+		// Validate request code
+		const validUnsubscribeCodes = [
+			FeedRequestCode.UNSUBSCRIBE_TICKER,
+			FeedRequestCode.UNSUBSCRIBE_QUOTE,
+			FeedRequestCode.UNSUBSCRIBE_FULL,
+			FeedRequestCode.UNSUBSCRIBE_MARKET_DEPTH,
+		];
+		
+		if (!validUnsubscribeCodes.includes(unsubscribeCode)) {
+			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid unsubscribe request code: ${unsubscribeCode}`);
+			this.emit("error", { connectionId: -1, error });
+			throw new Error(`Invalid unsubscribe request code: ${unsubscribeCode}. Valid codes: ${validUnsubscribeCodes.join(", ")}`);
+		}
+
 		// Find which connections have these instruments and unsubscribe
 		for (const [connectionId, connection] of this.connections) {
 			if (connection.ws?.readyState === WebSocket.OPEN) {
 				const batches = this.splitIntoBatches(instruments);
 				
 				for (const batch of batches) {
-					const packet = this.createSubscriptionPacket(batch, 16); // Unsubscribe request code
+					const packet = this.createSubscriptionPacket(batch, unsubscribeCode);
 					connection.ws.send(JSON.stringify(packet), (error) => {
 						if (error) {
 							console.error(`Error unsubscribing from connection ${connectionId}:`, error);
+							this.analyzeConnectionError(connectionId, error);
 						}
 					});
 				}
@@ -600,5 +775,177 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			errorCode: data.readUInt16LE(8),
 			reason: `Disconnection code: ${data.readUInt16LE(8)}`,
 		};
+	}
+
+	/**
+	 * Create a Dhan API error object
+	 */
+	private createDhanApiError(
+		errorType: "TradingApi" | "DataApi",
+		code: string | number,
+		message: string,
+		details?: any
+	): DhanApiError {
+		return {
+			errorType,
+			code,
+			message,
+			details,
+		};
+	}
+
+	/**
+	 * Get error message for Trading API error codes
+	 */
+	private getTradingApiErrorMessage(code: string): string {
+		switch (code) {
+			case TradingApiErrorCode.INVALID_AUTHENTICATION:
+				return "Client ID or user generated access token is invalid or expired.";
+			case TradingApiErrorCode.INVALID_ACCESS:
+				return "User has not subscribed to Data APIs or does not have access to Trading APIs. Kindly subscribe to Data APIs to be able to fetch Data.";
+			case TradingApiErrorCode.USER_ACCOUNT:
+				return "Errors related to User's Account. Check if the required segments are activated or other requirements are met.";
+			case TradingApiErrorCode.RATE_LIMIT:
+				return "Too many requests on server from single user breaching rate limits. Try throttling API calls.";
+			case TradingApiErrorCode.INPUT_EXCEPTION:
+				return "Missing required fields, bad values for parameters etc.";
+			case TradingApiErrorCode.ORDER_ERROR:
+				return "Incorrect request for order and cannot be processed.";
+			case TradingApiErrorCode.DATA_ERROR:
+				return "System is unable to fetch data due to incorrect parameters or no data present.";
+			case TradingApiErrorCode.INTERNAL_SERVER_ERROR:
+				return "Server was not able to process API request. This will only occur rarely.";
+			case TradingApiErrorCode.NETWORK_ERROR:
+				return "Network error where the API was unable to communicate with the backend system.";
+			case TradingApiErrorCode.OTHERS:
+				return "Error originating from other reasons.";
+			default:
+				return `Unknown Trading API error: ${code}`;
+		}
+	}
+
+	/**
+	 * Get error message for Data API error codes
+	 */
+	private getDataApiErrorMessage(code: number): string {
+		switch (code) {
+			case DataApiErrorCode.INTERNAL_SERVER_ERROR:
+				return "Internal Server Error";
+			case DataApiErrorCode.INSTRUMENT_LIMIT_EXCEEDED:
+				return "Requested number of instruments exceeds limit";
+			case DataApiErrorCode.TOO_MANY_REQUESTS:
+				return "Too many requests or connections. Further requests may result in the user being blocked.";
+			case DataApiErrorCode.DATA_APIS_NOT_SUBSCRIBED:
+				return "Data APIs not subscribed";
+			case DataApiErrorCode.ACCESS_TOKEN_EXPIRED:
+				return "Access token is expired";
+			case DataApiErrorCode.AUTHENTICATION_FAILED:
+				return "Authentication Failed - Client ID or Access Token invalid";
+			case DataApiErrorCode.ACCESS_TOKEN_INVALID:
+				return "Access token is invalid";
+			case DataApiErrorCode.CLIENT_ID_INVALID:
+				return "Client ID is invalid";
+			case DataApiErrorCode.INVALID_EXPIRY_DATE:
+				return "Invalid Expiry Date";
+			case DataApiErrorCode.INVALID_DATE_FORMAT:
+				return "Invalid Date Format";
+			case DataApiErrorCode.INVALID_SECURITY_ID:
+				return "Invalid SecurityId";
+			case DataApiErrorCode.INVALID_REQUEST:
+				return "Invalid Request";
+			default:
+				return `Unknown Data API error: ${code}`;
+		}
+	}
+
+	/**
+	 * Handle Data API errors based on error codes
+	 */
+	private handleDataApiError(connectionId: number, errorCode: number, details?: any): void {
+		const message = this.getDataApiErrorMessage(errorCode);
+		const error = this.createDhanApiError("DataApi", errorCode, message, details);
+		
+		console.error(`Connection ${connectionId} Data API Error [${errorCode}]: ${message}`);
+		
+		// Handle critical errors that require connection closure
+		if ([
+			DataApiErrorCode.ACCESS_TOKEN_EXPIRED,
+			DataApiErrorCode.AUTHENTICATION_FAILED,
+			DataApiErrorCode.ACCESS_TOKEN_INVALID,
+			DataApiErrorCode.CLIENT_ID_INVALID,
+			DataApiErrorCode.DATA_APIS_NOT_SUBSCRIBED,
+		].includes(errorCode)) {
+			console.error(`Critical error for connection ${connectionId}. Closing connection.`);
+			this.cleanupConnection(connectionId, false);
+		}
+
+		// Handle rate limiting
+		if (errorCode === DataApiErrorCode.TOO_MANY_REQUESTS) {
+			console.warn(`Rate limit exceeded for connection ${connectionId}. Implementing backoff strategy.`);
+			const connection = this.connections.get(connectionId);
+			if (connection) {
+				connection.reconnectAttempts += 2; // Increase backoff
+			}
+		}
+
+		this.emit("error", { connectionId, error });
+	}
+
+	/**
+	 * Handle Trading API errors
+	 */
+	private handleTradingApiError(connectionId: number, errorCode: string, details?: any): void {
+		const message = this.getTradingApiErrorMessage(errorCode);
+		const error = this.createDhanApiError("TradingApi", errorCode, message, details);
+		
+		console.error(`Connection ${connectionId} Trading API Error [${errorCode}]: ${message}`);
+		
+		// Handle critical errors
+		if ([
+			TradingApiErrorCode.INVALID_AUTHENTICATION,
+			TradingApiErrorCode.INVALID_ACCESS,
+		].includes(errorCode as TradingApiErrorCode)) {
+			console.error(`Critical error for connection ${connectionId}. Closing connection.`);
+			this.cleanupConnection(connectionId, false);
+		}
+
+		// Handle rate limiting
+		if (errorCode === TradingApiErrorCode.RATE_LIMIT) {
+			console.warn(`Rate limit exceeded for connection ${connectionId}. Implementing backoff strategy.`);
+			const connection = this.connections.get(connectionId);
+			if (connection) {
+				connection.reconnectAttempts += 3; // Aggressive backoff for rate limiting
+			}
+		}
+
+		this.emit("error", { connectionId, error });
+	}
+
+	/**
+	 * Analyze connection error to determine if it's API-related
+	 */
+	private analyzeConnectionError(connectionId: number, error: Error): void {
+		const errorMessage = error.message.toLowerCase();
+		
+		// Check for authentication errors
+		if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+			this.handleTradingApiError(connectionId, TradingApiErrorCode.INVALID_AUTHENTICATION);
+		}
+		// Check for access token expiry
+		else if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
+			this.handleDataApiError(connectionId, DataApiErrorCode.ACCESS_TOKEN_EXPIRED);
+		}
+		// Check for rate limiting
+		else if (errorMessage.includes('429') || errorMessage.includes('too many')) {
+			this.handleDataApiError(connectionId, DataApiErrorCode.TOO_MANY_REQUESTS);
+		}
+		// Check for server errors
+		else if (errorMessage.includes('500') || errorMessage.includes('internal server')) {
+			this.handleDataApiError(connectionId, DataApiErrorCode.INTERNAL_SERVER_ERROR);
+		}
+		// Check for network errors
+		else if (errorMessage.includes('network') || errorMessage.includes('timeout') || errorMessage.includes('econnreset')) {
+			this.handleTradingApiError(connectionId, TradingApiErrorCode.NETWORK_ERROR);
+		}
 	}
 }

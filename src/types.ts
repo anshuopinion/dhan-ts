@@ -14,6 +14,7 @@ export enum OrderFlag {
 	OCO = "OCO",
 }
 
+// Feed Request Codes
 export enum FeedRequestCode {
 	CONNECT = 11,
 	DISCONNECT = 12,
@@ -23,7 +24,76 @@ export enum FeedRequestCode {
 	UNSUBSCRIBE_QUOTE = 18,
 	SUBSCRIBE_FULL = 21,
 	UNSUBSCRIBE_FULL = 22,
+	SUBSCRIBE_MARKET_DEPTH = 23,
+	UNSUBSCRIBE_MARKET_DEPTH = 24,
 }
+
+// Feed Response Codes
+export enum FeedResponseCode {
+	INDEX = 1,
+	TICKER = 2,
+	QUOTE = 4,
+	OI = 5,
+	PREV_CLOSE = 6,
+	MARKET_STATUS = 7,
+	FULL = 8,
+	FEED_DISCONNECT = 50,
+}
+
+// Trading API Error Codes
+export enum TradingApiErrorCode {
+	INVALID_AUTHENTICATION = "DH-901",
+	INVALID_ACCESS = "DH-902",
+	USER_ACCOUNT = "DH-903",
+	RATE_LIMIT = "DH-904",
+	INPUT_EXCEPTION = "DH-905",
+	ORDER_ERROR = "DH-906",
+	DATA_ERROR = "DH-907",
+	INTERNAL_SERVER_ERROR = "DH-908",
+	NETWORK_ERROR = "DH-909",
+	OTHERS = "DH-910",
+}
+
+// Data API Error Codes
+export enum DataApiErrorCode {
+	INTERNAL_SERVER_ERROR = 800,
+	INSTRUMENT_LIMIT_EXCEEDED = 804,
+	TOO_MANY_REQUESTS = 805,
+	DATA_APIS_NOT_SUBSCRIBED = 806,
+	ACCESS_TOKEN_EXPIRED = 807,
+	AUTHENTICATION_FAILED = 808,
+	ACCESS_TOKEN_INVALID = 809,
+	CLIENT_ID_INVALID = 810,
+	INVALID_EXPIRY_DATE = 811,
+	INVALID_DATE_FORMAT = 812,
+	INVALID_SECURITY_ID = 813,
+	INVALID_REQUEST = 814,
+}
+
+// Error response interfaces
+export interface DhanApiError {
+	errorType: "TradingApi" | "DataApi";
+	code: string | number;
+	message: string;
+	details?: any;
+}
+
+export interface FeedErrorResponse {
+	type: "error";
+	errorCode: number;
+	errorMessage: string;
+	connectionId?: string;
+	timestamp: number;
+}
+
+export interface FeedDisconnectionResponse {
+	type: "disconnection";
+	errorCode: number;
+	reason: string;
+	connectionId?: string;
+	timestamp: number;
+}
+
 export enum KillSwitchStatus {
 	ACTIVATE = "ACTIVATE",
 	DEACTIVATE = "DEACTIVATE",
@@ -380,7 +450,9 @@ export type LiveFeedResponse =
 	| PrevCloseResponse
 	| MarketStatusResponse
 	| FullMarketDataResponse
-	| MarketDepthResponse;
+	| MarketDepthResponse
+	| FeedErrorResponse
+	| FeedDisconnectionResponse;
 
 export interface DisconnectionResponse {
 	errorCode: number;
