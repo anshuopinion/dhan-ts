@@ -1,12 +1,14 @@
 import {DhanFeed} from "../src/dhan-feed";
 import {DhanConfig, DhanEnv, ExchangeSegment, Instrument} from "../src/types";
 
-// Example usage of MultiConnectionLiveFeed for handling large number of instruments
+import dotenv from "dotenv";
+
+dotenv.config();
+// Scanner App Example - Handling 2000+ Stocks
 const config: DhanConfig = {
-	clientId: "2506037702",
-	accessToken:
-		"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJwYXJ0bmVySWQiOiIiLCJkaGFuQ2xpZW50SWQiOiIyNTA2MDM3NzAyIiwid2ViaG9va1VybCI6IiIsImlzcyI6ImRoYW4iLCJleHAiOjE3NTE1MjE3NjV9.Cu4pkjwgH_CDfVGU2b6tm3iVd7pgo8nz91o-Qphd4vBhOcQKyaFPCAys_9Pj4ap81rudv3iAW5FxMedZf3X8cg",
-	env: DhanEnv.SANDBOX, // Use DhanEnv.PROD for production
+	clientId: process.env.DHAN_CLIENT_ID!,
+	accessToken: process.env.ACCESS_TOKEN!,
+	env: DhanEnv.PROD, // Use DhanEnv.SANDBOX for testing
 };
 
 async function main() {

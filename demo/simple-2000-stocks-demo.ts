@@ -1,11 +1,14 @@
-import { DhanFeed } from "../src/dhan-feed";
-import { DhanConfig, DhanEnv, ExchangeSegment, Instrument } from "../src/types";
+import {DhanFeed} from "../src/dhan-feed";
+import {DhanConfig, DhanEnv, ExchangeSegment, Instrument} from "../src/types";
 
-// Simple example showing how 2000+ stocks are handled
+import dotenv from "dotenv";
+
+dotenv.config();
+// Scanner App Example - Handling 2000+ Stocks
 const config: DhanConfig = {
-	clientId: "your-client-id",
-	accessToken: "your-access-token",
-	env: DhanEnv.SANDBOX,
+	clientId: process.env.DHAN_CLIENT_ID!,
+	accessToken: process.env.ACCESS_TOKEN!,
+	env: DhanEnv.PROD, // Use DhanEnv.SANDBOX for testing
 };
 
 async function demonstrate2000StocksHandling() {
@@ -28,13 +31,13 @@ async function demonstrate2000StocksHandling() {
 	let totalMessages = 0;
 	const startTime = Date.now();
 
-	dhanFeed.multiConnectionLiveFeed.on("connect", ({ connectionId }) => {
+	dhanFeed.multiConnectionLiveFeed.on("connect", ({connectionId}) => {
 		console.log(`✅ Connection ${connectionId} established`);
 	});
 
-	dhanFeed.multiConnectionLiveFeed.on("message", ({ connectionId, data }) => {
+	dhanFeed.multiConnectionLiveFeed.on("message", ({connectionId, data}) => {
 		totalMessages++;
-		
+
 		// Log every 100 messages to show it's working
 		if (totalMessages % 100 === 0) {
 			console.log(`📈 Received ${totalMessages} real-time updates so far...`);
@@ -43,13 +46,13 @@ async function demonstrate2000StocksHandling() {
 
 	try {
 		console.log("\\n🚀 Starting subscription...");
-		
+
 		// This single call will handle all 2500 stocks automatically
 		await dhanFeed.multiConnectionLiveFeed.subscribe(stocks, 15); // Ticker data
-		
+
 		const subscriptionTime = Date.now() - startTime;
 		console.log(`\\n✅ SUCCESS! Subscribed to ${stocks.length} stocks in ${subscriptionTime}ms`);
-		
+
 		// Show connection status
 		const status = dhanFeed.multiConnectionLiveFeed.getConnectionStatus();
 		console.log("\\n📊 Connection Status:");
@@ -69,7 +72,6 @@ async function demonstrate2000StocksHandling() {
 			dhanFeed.multiConnectionLiveFeed.close();
 			process.exit(0);
 		});
-
 	} catch (error) {
 		console.error("❌ Error:", error);
 	}

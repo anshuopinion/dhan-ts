@@ -1,25 +1,27 @@
 import {DhanFeed} from "../src/dhan-feed";
 import {DhanConfig, DhanEnv, ExchangeSegment, Instrument} from "../src/types";
+import dotenv from "dotenv";
 
-// Configuration
+dotenv.config();
+// Scanner App Example - Handling 2000+ Stocks
 const config: DhanConfig = {
-	clientId: "your_client_id",
-	accessToken: "your_access_token",
-	env: DhanEnv.PROD, // or DhanEnv.SANDBOX
+	clientId: process.env.DHAN_CLIENT_ID!,
+	accessToken: process.env.ACCESS_TOKEN!,
+	env: DhanEnv.PROD, // Use DhanEnv.SANDBOX for testing
 };
 
 // Sample instruments (Top 10 NSE stocks)
 const instruments: Instrument[] = [
-	[ExchangeSegment.NSE_EQ, "1333"],  // HDFC Bank
+	[ExchangeSegment.NSE_EQ, "1333"], // HDFC Bank
 	[ExchangeSegment.NSE_EQ, "11536"], // TCS
-	[ExchangeSegment.NSE_EQ, "3456"],  // Reliance
-	[ExchangeSegment.NSE_EQ, "25"],    // Infosys
-	[ExchangeSegment.NSE_EQ, "4963"],  // ICICI Bank
-	[ExchangeSegment.NSE_EQ, "1922"],  // Asian Paints
+	[ExchangeSegment.NSE_EQ, "3456"], // Reliance
+	[ExchangeSegment.NSE_EQ, "25"], // Infosys
+	[ExchangeSegment.NSE_EQ, "4963"], // ICICI Bank
+	[ExchangeSegment.NSE_EQ, "1922"], // Asian Paints
 	[ExchangeSegment.NSE_EQ, "14299"], // ITC
-	[ExchangeSegment.NSE_EQ, "2475"],  // Kotak Mahindra Bank
-	[ExchangeSegment.NSE_EQ, "1594"],  // L&T
-	[ExchangeSegment.NSE_EQ, "1270"],  // HUL
+	[ExchangeSegment.NSE_EQ, "2475"], // Kotak Mahindra Bank
+	[ExchangeSegment.NSE_EQ, "1594"], // L&T
+	[ExchangeSegment.NSE_EQ, "1270"], // HUL
 ];
 
 class MarketDataApp {
@@ -39,11 +41,11 @@ class MarketDataApp {
 		const currentTime = now.getHours() * 60 + now.getMinutes();
 		const marketOpen = 9 * 60 + 15; // 9:15 AM
 		const marketClose = 15 * 60 + 30; // 3:30 PM
-		
+
 		// Check if it's a weekday and within market hours
 		const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
 		const isWithinHours = currentTime >= marketOpen && currentTime <= marketClose;
-		
+
 		return isWeekday && isWithinHours;
 	}
 
@@ -52,14 +54,12 @@ class MarketDataApp {
 	 */
 	async startMarketDataFeed(): Promise<void> {
 		console.log("🚀 Starting Market Data Application");
-		console.log(`📊 Market Status: ${this.isMarketOpen ? 'OPEN' : 'CLOSED'}`);
-		console.log(`🔄 Using: ${this.isMarketOpen ? 'REAL' : 'MOCK'} feed`);
-		console.log("=" .repeat(50));
+		console.log(`📊 Market Status: ${this.isMarketOpen ? "OPEN" : "CLOSED"}`);
+		console.log(`🔄 Using: ${this.isMarketOpen ? "REAL" : "MOCK"} feed`);
+		console.log("=".repeat(50));
 
 		// Choose the appropriate feed based on market status
-		const feed = this.isMarketOpen 
-			? this.dhanFeed.multiConnectionLiveFeed 
-			: this.dhanFeed.mockMultiConnectionLiveFeed;
+		const feed = this.isMarketOpen ? this.dhanFeed.multiConnectionLiveFeed : this.dhanFeed.mockMultiConnectionLiveFeed;
 
 		// Set up event listeners (same for both real and mock!)
 		this.setupEventListeners(feed);
@@ -82,7 +82,6 @@ class MarketDataApp {
 			if (!this.isMarketOpen) {
 				this.simulateMarketEvents();
 			}
-
 		} catch (error) {
 			console.error("❌ Error starting market data feed:", error);
 		}
@@ -120,18 +119,22 @@ class MarketDataApp {
 	 */
 	private handleMarketData(connectionId: number, data: any): void {
 		// Handle different data types
-		if ('type' in data) {
+		if ("type" in data) {
 			switch (data.type) {
 				case "ticker":
 					console.log(`📈 [${connectionId}] TICKER: ${data.securityId} @ ₹${data.lastTradedPrice}`);
 					break;
 
 				case "quote":
-					console.log(`📊 [${connectionId}] QUOTE: ${data.securityId} @ ₹${data.lastTradedPrice} | Vol: ${data.volumeTraded} | H:₹${data.highPrice} L:₹${data.lowPrice}`);
+					console.log(
+						`📊 [${connectionId}] QUOTE: ${data.securityId} @ ₹${data.lastTradedPrice} | Vol: ${data.volumeTraded} | H:₹${data.highPrice} L:₹${data.lowPrice}`
+					);
 					break;
 
 				case "full":
-					console.log(`🎯 [${connectionId}] FULL: ${data.securityId} @ ₹${data.lastTradedPrice} | OI: ${data.openInterest} | Depth: ${data.marketDepth.buy.length}/${data.marketDepth.sell.length}`);
+					console.log(
+						`🎯 [${connectionId}] FULL: ${data.securityId} @ ₹${data.lastTradedPrice} | OI: ${data.openInterest} | Depth: ${data.marketDepth.buy.length}/${data.marketDepth.sell.length}`
+					);
 					break;
 
 				case "market_status":
@@ -157,7 +160,7 @@ class MarketDataApp {
 	 */
 	private simulateMarketEvents(): void {
 		console.log("\\n🎭 Simulating market events (mock only):");
-		
+
 		// Simulate high volume event after 5 seconds
 		setTimeout(() => {
 			console.log("🌊 Simulating HIGH VOLUME event...");
@@ -181,9 +184,7 @@ class MarketDataApp {
 	 * Get connection status
 	 */
 	getConnectionStatus(): void {
-		const feed = this.isMarketOpen 
-			? this.dhanFeed.multiConnectionLiveFeed 
-			: this.dhanFeed.mockMultiConnectionLiveFeed;
+		const feed = this.isMarketOpen ? this.dhanFeed.multiConnectionLiveFeed : this.dhanFeed.mockMultiConnectionLiveFeed;
 
 		const status = feed.getConnectionStatus();
 		console.log("\\n📊 Connection Status:", status);
@@ -202,7 +203,7 @@ class MarketDataApp {
 // Example usage
 async function main() {
 	const app = new MarketDataApp(config);
-	
+
 	try {
 		await app.startMarketDataFeed();
 
@@ -216,7 +217,6 @@ async function main() {
 			app.stop();
 			process.exit(0);
 		}, 20000);
-
 	} catch (error) {
 		console.error("Application error:", error);
 		process.exit(1);
