@@ -7,6 +7,7 @@ The mock and real feeds provide **identical data structures**, allowing you to d
 ## 📊 **Data Structure Compatibility**
 
 ### ✅ **Identical Response Types**
+
 Both feeds return the same `LiveFeedResponse` union type with identical structures:
 
 ```typescript
@@ -66,6 +67,7 @@ Both feeds return the same `LiveFeedResponse` union type with identical structur
 ## 🔄 **Seamless Development Workflow**
 
 ### **During Development (Market Closed)**
+
 ```typescript
 const dhanFeed = new DhanFeed(config);
 
@@ -74,12 +76,13 @@ await dhanFeed.mockMultiConnectionLiveFeed.subscribe(instruments, 15);
 
 // Set up event listeners (same as real!)
 dhanFeed.mockMultiConnectionLiveFeed.on("message", ({connectionId, data}) => {
-  // Handle market data - same structure as real feed
-  console.log("Market Data:", data);
+	// Handle market data - same structure as real feed
+	console.log("Market Data:", data);
 });
 ```
 
 ### **In Production (Market Open)**
+
 ```typescript
 const dhanFeed = new DhanFeed(config);
 
@@ -88,8 +91,8 @@ await dhanFeed.multiConnectionLiveFeed.subscribe(instruments, 15);
 
 // Same event listeners work!
 dhanFeed.multiConnectionLiveFeed.on("message", ({connectionId, data}) => {
-  // Handle market data - identical structure
-  console.log("Market Data:", data);
+	// Handle market data - identical structure
+	console.log("Market Data:", data);
 });
 ```
 
@@ -97,38 +100,36 @@ dhanFeed.multiConnectionLiveFeed.on("message", ({connectionId, data}) => {
 
 ```typescript
 class SmartMarketApp {
-  private dhanFeed: DhanFeed;
-  
-  constructor(config: DhanConfig) {
-    this.dhanFeed = new DhanFeed(config);
-  }
-  
-  async start() {
-    // Automatically choose based on market hours
-    const isMarketOpen = this.checkMarketHours();
-    const feed = isMarketOpen 
-      ? this.dhanFeed.multiConnectionLiveFeed 
-      : this.dhanFeed.mockMultiConnectionLiveFeed;
-    
-    // Same API for both!
-    await feed.subscribe(instruments, 15);
-    feed.on("message", this.handleData);
-  }
-  
-  private handleData = ({connectionId, data}) => {
-    // Works with both real and mock data!
-    switch (data.type) {
-      case "ticker":
-        this.processTicker(data);
-        break;
-      case "quote":
-        this.processQuote(data);
-        break;
-      case "full":
-        this.processFull(data);
-        break;
-    }
-  }
+	private dhanFeed: DhanFeed;
+
+	constructor(config: DhanConfig) {
+		this.dhanFeed = new DhanFeed(config);
+	}
+
+	async start() {
+		// Automatically choose based on market hours
+		const isMarketOpen = this.checkMarketHours();
+		const feed = isMarketOpen ? this.dhanFeed.multiConnectionLiveFeed : this.dhanFeed.mockMultiConnectionLiveFeed;
+
+		// Same API for both!
+		await feed.subscribe(instruments, 15);
+		feed.on("message", this.handleData);
+	}
+
+	private handleData = ({connectionId, data}) => {
+		// Works with both real and mock data!
+		switch (data.type) {
+			case "ticker":
+				this.processTicker(data);
+				break;
+			case "quote":
+				this.processQuote(data);
+				break;
+			case "full":
+				this.processFull(data);
+				break;
+		}
+	};
 }
 ```
 
@@ -156,6 +157,7 @@ mockFeed.simulateMarketEvent("crash");
 ## 📈 **Realistic Mock Data**
 
 The mock feed generates realistic data:
+
 - **Price Movements**: Based on volatility models
 - **Volume Data**: Realistic trading volumes
 - **Market Depth**: 5-level order book simulation
@@ -182,7 +184,7 @@ The mock feed generates realistic data:
 **YES!** You can absolutely create and develop your application when the market is off. The mock feed provides:
 
 - ✅ Identical data structures
-- ✅ Same API methods  
+- ✅ Same API methods
 - ✅ Compatible event system
 - ✅ Realistic market simulation
 - ✅ Seamless production switching
@@ -193,7 +195,7 @@ Just change one line of code to switch from development to production!
 // Development
 const feed = dhanFeed.mockMultiConnectionLiveFeed;
 
-// Production  
+// Production
 const feed = dhanFeed.multiConnectionLiveFeed;
 ```
 

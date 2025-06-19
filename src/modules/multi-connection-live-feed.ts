@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { EventEmitter } from "events";
+import {EventEmitter} from "events";
 import {
 	DhanConfig,
 	LiveFeedResponse,
@@ -102,7 +102,9 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			return newConnectionId;
 		}
 
-		throw new Error(`Cannot accommodate ${instrumentCount} instruments. Maximum connections (${this.maxConnections}) reached and no connection has sufficient capacity.`);
+		throw new Error(
+			`Cannot accommodate ${instrumentCount} instruments. Maximum connections (${this.maxConnections}) reached and no connection has sufficient capacity.`
+		);
 	}
 
 	/**
@@ -112,7 +114,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		// Validate inputs
 		if (!instruments || instruments.length === 0) {
 			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, "No instruments provided for subscription");
-			this.emit("error", { connectionId: -1, error });
+			this.emit("error", {connectionId: -1, error});
 			throw new Error("No instruments provided for subscription");
 		}
 
@@ -123,10 +125,10 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			FeedRequestCode.SUBSCRIBE_FULL,
 			FeedRequestCode.SUBSCRIBE_MARKET_DEPTH,
 		];
-		
+
 		if (!validRequestCodes.includes(requestCode)) {
 			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid request code: ${requestCode}`);
-			this.emit("error", { connectionId: -1, error });
+			this.emit("error", {connectionId: -1, error});
 			throw new Error(`Invalid request code: ${requestCode}. Valid codes: ${validRequestCodes.join(", ")}`);
 		}
 
@@ -134,24 +136,36 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		for (let i = 0; i < instruments.length; i++) {
 			const instrument = instruments[i];
 			if (!Array.isArray(instrument) || instrument.length !== 2) {
-				const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid instrument format at index ${i}: ${JSON.stringify(instrument)}`);
-				this.emit("error", { connectionId: -1, error });
+				const error = this.createDhanApiError(
+					"DataApi",
+					DataApiErrorCode.INVALID_REQUEST,
+					`Invalid instrument format at index ${i}: ${JSON.stringify(instrument)}`
+				);
+				this.emit("error", {connectionId: -1, error});
 				throw new Error(`Invalid instrument format at index ${i}. Expected [ExchangeSegment, SecurityId]`);
 			}
 
 			const [exchangeSegment, securityId] = instrument;
-			if (typeof exchangeSegment !== 'number' || typeof securityId !== 'string') {
-				const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_SECURITY_ID, `Invalid instrument data at index ${i}: exchangeSegment must be number, securityId must be string`);
-				this.emit("error", { connectionId: -1, error });
+			if (typeof exchangeSegment !== "number" || typeof securityId !== "string") {
+				const error = this.createDhanApiError(
+					"DataApi",
+					DataApiErrorCode.INVALID_SECURITY_ID,
+					`Invalid instrument data at index ${i}: exchangeSegment must be number, securityId must be string`
+				);
+				this.emit("error", {connectionId: -1, error});
 				throw new Error(`Invalid instrument data at index ${i}: exchangeSegment must be number, securityId must be string`);
 			}
 		}
 
 		// Check instrument limit
-		if (instruments.length > (this.maxConnections * this.maxInstrumentsPerConnection)) {
+		if (instruments.length > this.maxConnections * this.maxInstrumentsPerConnection) {
 			const maxAllowed = this.maxConnections * this.maxInstrumentsPerConnection;
-			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INSTRUMENT_LIMIT_EXCEEDED, `Requested ${instruments.length} instruments exceeds maximum limit of ${maxAllowed}`);
-			this.emit("error", { connectionId: -1, error });
+			const error = this.createDhanApiError(
+				"DataApi",
+				DataApiErrorCode.INSTRUMENT_LIMIT_EXCEEDED,
+				`Requested ${instruments.length} instruments exceeds maximum limit of ${maxAllowed}`
+			);
+			this.emit("error", {connectionId: -1, error});
 			throw new Error(`Requested ${instruments.length} instruments exceeds maximum limit of ${maxAllowed}`);
 		}
 
@@ -179,15 +193,15 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			for (let i = 0; i < batches.length; i++) {
 				const batch = batches[i];
 				console.log(`Sending batch ${i + 1}/${batches.length} with ${batch.length} instruments`);
-				
+
 				const packet = this.createSubscriptionPacket(batch, requestCode);
-				
+
 				if (connection.ws && connection.ws.readyState === WebSocket.OPEN) {
-					connection.ws.send(JSON.stringify(packet), (error) => {
+					connection.ws.send(JSON.stringify(packet), error => {
 						if (error) {
 							console.error(`Error sending batch ${i + 1}:`, error);
 							this.analyzeConnectionError(connectionId, error);
-							this.emit("error", { connectionId, error });
+							this.emit("error", {connectionId, error});
 						} else {
 							console.log(`Successfully sent batch ${i + 1}/${batches.length}`);
 						}
@@ -199,7 +213,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					}
 				} else {
 					const error = this.createDhanApiError("DataApi", DataApiErrorCode.INTERNAL_SERVER_ERROR, `Connection ${connectionId} is not ready for subscription`);
-					this.emit("error", { connectionId, error });
+					this.emit("error", {connectionId, error});
 					throw new Error(`Connection ${connectionId} is not ready for subscription`);
 				}
 			}
@@ -244,7 +258,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 				connection.connectionState = "connecting";
 				const wsUrl = this.getWebSocketUrl(connectionId);
 				console.log(`Connecting to WebSocket for connection ${connectionId}: ${wsUrl}`);
-				
+
 				connection.ws = new WebSocket(wsUrl);
 
 				const connectionTimeout = setTimeout(() => {
@@ -261,18 +275,18 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					connection.reconnectAttempts = 0;
 					console.log(`WebSocket connection ${connectionId} established successfully`);
 					this.setupPingInterval(connectionId);
-					this.emit("connect", { connectionId });
+					this.emit("connect", {connectionId});
 					resolve();
 				});
 
-				connection.ws.on("error", (error) => {
+				connection.ws.on("error", error => {
 					clearTimeout(connectionTimeout);
 					console.error(`WebSocket connection ${connectionId} error:`, error);
 					connection.connectionState = "disconnected";
-					
+
 					// Check if error is related to authentication or API limits
 					this.analyzeConnectionError(connectionId, error);
-					
+
 					this.handleConnectionError(connectionId, error);
 					reject(error);
 				});
@@ -281,7 +295,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					clearTimeout(connectionTimeout);
 					connection.connectionState = "disconnected";
 					console.log(`WebSocket connection ${connectionId} closed with code ${code} and reason: ${reason}`);
-					this.emit("close", { connectionId, code, reason: reason.toString() });
+					this.emit("close", {connectionId, code, reason: reason.toString()});
 
 					if (!connection.isIntentionalClose) {
 						this.attemptReconnect(connectionId);
@@ -301,7 +315,6 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					// Connection is alive
 					console.log(`Pong received from connection ${connectionId}`);
 				});
-
 			} catch (error) {
 				connection.connectionState = "disconnected";
 				reject(error);
@@ -333,7 +346,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	 */
 	private handleConnectionError(connectionId: number, error: Error): void {
 		console.error(`Connection ${connectionId} error:`, error);
-		this.emit("error", { connectionId, error });
+		this.emit("error", {connectionId, error});
 	}
 
 	/**
@@ -345,13 +358,13 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 
 		if (connection.reconnectAttempts >= this.maxReconnectAttempts) {
 			console.error(`Max reconnection attempts reached for connection ${connectionId}`);
-			this.emit("maxReconnectAttemptsReached", { connectionId });
+			this.emit("maxReconnectAttemptsReached", {connectionId});
 			return;
 		}
 
 		connection.reconnectAttempts++;
 		connection.connectionState = "reconnecting";
-		
+
 		const delay = this.getReconnectDelay(connection.reconnectAttempts);
 		console.log(`Attempting to reconnect connection ${connectionId} in ${delay}ms (attempt ${connection.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
@@ -392,8 +405,8 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			for (let i = 0; i < batches.length; i++) {
 				const batch = batches[i];
 				const packet = this.createSubscriptionPacket(batch, requestCode);
-				
-				connection.ws.send(JSON.stringify(packet), (error) => {
+
+				connection.ws.send(JSON.stringify(packet), error => {
 					if (error) {
 						console.error(`Error resubscribing batch ${i + 1} for connection ${connectionId}:`, error);
 					}
@@ -427,34 +440,34 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		let parsedData: LiveFeedResponse | null = null;
 
 		switch (responseCode) {
-			case FeedResponseCode.TICKER:
+			case 2: // FeedResponseCode.TICKER
 				parsedData = this.parseTickerPacket(data);
 				break;
-			case FeedResponseCode.QUOTE:
+			case 4: // FeedResponseCode.QUOTE
 				parsedData = this.parseQuotePacket(data);
 				break;
-			case FeedResponseCode.OI:
+			case 5: // FeedResponseCode.OI
 				parsedData = this.parseOIDataPacket(data);
 				break;
-			case FeedResponseCode.PREV_CLOSE:
+			case 6: // FeedResponseCode.PREV_CLOSE
 				parsedData = this.parsePrevClosePacket(data);
 				break;
-			case FeedResponseCode.FULL:
-				parsedData = this.parseFullMarketDataPacket(data);
-				break;
-			case FeedResponseCode.MARKET_STATUS:
+			case 7: // FeedResponseCode.MARKET_STATUS
 				parsedData = this.parseMarketStatusPacket(data);
 				break;
-			case FeedResponseCode.FEED_DISCONNECT:
+			case 8: // FeedResponseCode.FULL
+				parsedData = this.parseFullMarketDataPacket(data);
+				break;
+			case 50: // FeedResponseCode.FEED_DISCONNECT
 				const disconnectionData = this.parseDisconnectionPacket(data);
 				this.handleFeedDisconnection(connectionId, disconnectionData);
 				return;
 			default:
 				// Check if it's a JSON error response
 				try {
-					const jsonString = data.toString('utf8');
+					const jsonString = data.toString("utf8");
 					const jsonData = JSON.parse(jsonString);
-					
+
 					// Handle JSON error responses
 					if (jsonData.error || jsonData.errorCode) {
 						this.handleJsonErrorResponse(connectionId, jsonData);
@@ -479,7 +492,9 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		}
 
 		if (parsedData) {
-			this.emit("message", { connectionId, data: parsedData });
+			// Emit both 'message' event (with connection info) and 'data' event (for compatibility)
+			this.emit("message", {connectionId, data: parsedData});
+			this.emit("data", parsedData);
 		}
 	}
 
@@ -489,7 +504,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private handleJsonErrorResponse(connectionId: number, jsonData: any): void {
 		const errorCode = jsonData.errorCode || jsonData.error?.code;
 		const errorMessage = jsonData.errorMessage || jsonData.error?.message || jsonData.message;
-		
+
 		console.error(`Connection ${connectionId} JSON Error Response:`, jsonData);
 
 		// Create error response
@@ -502,16 +517,16 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		};
 
 		// Handle based on error code
-		if (typeof errorCode === 'number' && errorCode >= 800 && errorCode <= 814) {
+		if (typeof errorCode === "number" && errorCode >= 800 && errorCode <= 814) {
 			this.handleDataApiError(connectionId, errorCode, jsonData);
-		} else if (typeof errorCode === 'string' && errorCode.startsWith('DH-')) {
+		} else if (typeof errorCode === "string" && errorCode.startsWith("DH-")) {
 			this.handleTradingApiError(connectionId, errorCode, jsonData);
 		} else {
 			// Generic error handling
-			this.emit("error", { connectionId, error: errorResponse });
+			this.emit("error", {connectionId, error: errorResponse});
 		}
 
-		this.emit("message", { connectionId, data: errorResponse });
+		this.emit("message", {connectionId, data: errorResponse});
 	}
 
 	/**
@@ -533,8 +548,8 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			this.handleDataApiError(connectionId, disconnectionData.errorCode);
 		}
 
-		this.emit("disconnection", { connectionId, ...disconnectionData });
-		this.emit("message", { connectionId, data: feedDisconnection });
+		this.emit("disconnection", {connectionId, ...disconnectionData});
+		this.emit("message", {connectionId, data: feedDisconnection});
 	}
 
 	/**
@@ -549,7 +564,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			timestamp: Date.now(),
 		};
 
-		this.emit("message", { connectionId, data: errorResponse });
+		this.emit("message", {connectionId, data: errorResponse});
 	}
 
 	/**
@@ -560,7 +575,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			RequestCode: requestCode,
 			InstrumentCount: instruments.length,
 			InstrumentList: instruments.map(([exchangeSegment, securityId]) => ({
-				ExchangeSegment: exchangeSegment, // Use the enum value directly
+				ExchangeSegment: ExchangeSegment[exchangeSegment], // Use the enum name, not the value
 				SecurityId: securityId,
 			})),
 		};
@@ -572,7 +587,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	async unsubscribe(instruments: Instrument[], requestCode?: number): Promise<void> {
 		// Default to ticker unsubscribe if no request code provided
 		const unsubscribeCode = requestCode || FeedRequestCode.UNSUBSCRIBE_TICKER;
-		
+
 		// Validate request code
 		const validUnsubscribeCodes = [
 			FeedRequestCode.UNSUBSCRIBE_TICKER,
@@ -580,10 +595,10 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			FeedRequestCode.UNSUBSCRIBE_FULL,
 			FeedRequestCode.UNSUBSCRIBE_MARKET_DEPTH,
 		];
-		
+
 		if (!validUnsubscribeCodes.includes(unsubscribeCode)) {
 			const error = this.createDhanApiError("DataApi", DataApiErrorCode.INVALID_REQUEST, `Invalid unsubscribe request code: ${unsubscribeCode}`);
-			this.emit("error", { connectionId: -1, error });
+			this.emit("error", {connectionId: -1, error});
 			throw new Error(`Invalid unsubscribe request code: ${unsubscribeCode}. Valid codes: ${validUnsubscribeCodes.join(", ")}`);
 		}
 
@@ -591,10 +606,10 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		for (const [connectionId, connection] of this.connections) {
 			if (connection.ws?.readyState === WebSocket.OPEN) {
 				const batches = this.splitIntoBatches(instruments);
-				
+
 				for (const batch of batches) {
 					const packet = this.createSubscriptionPacket(batch, unsubscribeCode);
-					connection.ws.send(JSON.stringify(packet), (error) => {
+					connection.ws.send(JSON.stringify(packet), error => {
 						if (error) {
 							console.error(`Error unsubscribing from connection ${connectionId}:`, error);
 							this.analyzeConnectionError(connectionId, error);
@@ -658,7 +673,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	/**
 	 * Get connection status
 	 */
-	getConnectionStatus(): Array<{ connectionId: number; state: string; instrumentCount: number; connectionIdString: string }> {
+	getConnectionStatus(): Array<{connectionId: number; state: string; instrumentCount: number; connectionIdString: string}> {
 		return Array.from(this.connections.entries()).map(([id, info]) => ({
 			connectionId: id,
 			state: info.connectionState,
@@ -671,7 +686,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private parseTickerPacket(data: Buffer): TickerResponse {
 		return {
 			type: "ticker",
-			exchangeSegment: data.readUInt8(3),
+			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
 			securityId: data.readUInt32LE(4),
 			lastTradedPrice: data.readFloatLE(8),
 			lastTradedTime: data.readUInt32LE(12),
@@ -681,26 +696,26 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private parseQuotePacket(data: Buffer): QuoteResponse {
 		return {
 			type: "quote",
-			exchangeSegment: data.readUInt8(3),
+			exchangeSegment: data.readUInt8(1),
 			securityId: data.readUInt32LE(4),
 			lastTradedPrice: data.readFloatLE(8),
 			lastTradedQuantity: data.readUInt16LE(12),
 			lastTradedTime: data.readUInt32LE(14),
 			averageTradePrice: data.readFloatLE(18),
 			volumeTraded: data.readUInt32LE(22),
-			totalSellQuantity: data.readUInt32LE(26),
-			totalBuyQuantity: data.readUInt32LE(30),
+			totalBuyQuantity: data.readUInt32LE(26),
+			totalSellQuantity: data.readUInt32LE(30),
 			openPrice: data.readFloatLE(34),
-			closePrice: data.readFloatLE(38),
-			highPrice: data.readFloatLE(42),
-			lowPrice: data.readFloatLE(46),
+			highPrice: data.readFloatLE(38),
+			lowPrice: data.readFloatLE(42),
+			closePrice: data.readFloatLE(46),
 		};
 	}
 
 	private parseOIDataPacket(data: Buffer): OiDataResponse {
 		return {
 			type: "oi_data",
-			exchangeSegment: data.readUInt8(3),
+			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
 			securityId: data.readUInt32LE(4),
 			openInterest: data.readUInt32LE(8),
 		};
@@ -709,7 +724,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private parsePrevClosePacket(data: Buffer): PrevCloseResponse {
 		return {
 			type: "prev_close",
-			exchangeSegment: data.readUInt8(3),
+			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
 			securityId: data.readUInt32LE(4),
 			previousClosePrice: data.readFloatLE(8),
 			previousOpenInterest: data.readUInt32LE(12),
@@ -717,37 +732,17 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	}
 
 	private parseFullMarketDataPacket(data: Buffer): FullMarketDataResponse {
-		// Parse market depth (5 levels, 20 bytes each)
-		const buyDepth: DepthLevel[] = [];
-		const sellDepth: DepthLevel[] = [];
-		
-		for (let i = 0; i < 5; i++) {
-			const offset = 62 + (i * 20);
-			const buyLevel: DepthLevel = {
-				quantity: data.readUInt32LE(offset),
-				orders: data.readUInt16LE(offset + 8),
-				price: data.readFloatLE(offset + 12),
-			};
-			const sellLevel: DepthLevel = {
-				quantity: data.readUInt32LE(offset + 4),
-				orders: data.readUInt16LE(offset + 10),
-				price: data.readFloatLE(offset + 16),
-			};
-			buyDepth.push(buyLevel);
-			sellDepth.push(sellLevel);
-		}
-
-		return {
+		const packet: FullMarketDataResponse = {
 			type: "full",
-			exchangeSegment: data.readUInt8(3),
+			exchangeSegment: data.readUInt8(1),
 			securityId: data.readUInt32LE(4),
 			lastTradedPrice: data.readFloatLE(8),
 			lastTradedQuantity: data.readUInt16LE(12),
 			lastTradedTime: data.readUInt32LE(14),
 			averageTradePrice: data.readFloatLE(18),
 			volumeTraded: data.readUInt32LE(22),
-			totalSellQuantity: data.readUInt32LE(26),
-			totalBuyQuantity: data.readUInt32LE(30),
+			totalBuyQuantity: data.readUInt32LE(26),
+			totalSellQuantity: data.readUInt32LE(30),
 			openInterest: data.readUInt32LE(34),
 			openInterestDayHigh: data.readUInt32LE(38),
 			openInterestDayLow: data.readUInt32LE(42),
@@ -755,18 +750,44 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			closePrice: data.readFloatLE(50),
 			highPrice: data.readFloatLE(54),
 			lowPrice: data.readFloatLE(58),
-			marketDepth: {
-				buy: buyDepth,
-				sell: sellDepth,
-			},
+			marketDepth: this.parseMarketDepth(data.slice(62, 162)),
 		};
+
+		return packet;
+	}
+
+	private parseMarketDepth(data: Buffer): MarketDepthResponse {
+		const depth: MarketDepthResponse = {
+			buy: [],
+			sell: [],
+		};
+
+		for (let i = 0; i < 5; i++) {
+			const offset = i * 20; // Each packet is 20 bytes
+
+			const buyLevel: DepthLevel = {
+				quantity: data.readInt32LE(offset), // Bytes 1-4: Bid Quantity
+				orders: data.readInt16LE(offset + 8), // Bytes 9-10: No. of Bid Orders
+				price: data.readFloatLE(offset + 12), // Bytes 13-16: Bid Price
+			};
+
+			const sellLevel: DepthLevel = {
+				quantity: data.readInt32LE(offset + 4), // Bytes 5-8: Ask Quantity
+				orders: data.readInt16LE(offset + 10), // Bytes 11-12: No. of Ask Orders
+				price: data.readFloatLE(offset + 16), // Bytes 17-20: Ask Price
+			};
+
+			depth.buy.push(buyLevel);
+			depth.sell.push(sellLevel);
+		}
+
+		return depth;
 	}
 
 	private parseMarketStatusPacket(data: Buffer): MarketStatusResponse {
-		const statusCode = data.readUInt8(8);
 		return {
 			type: "market_status",
-			status: statusCode === 7 ? "open" : "closed",
+			status: data.readUInt8(0) === 7 ? "open" : "closed",
 		};
 	}
 
@@ -780,12 +801,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	/**
 	 * Create a Dhan API error object
 	 */
-	private createDhanApiError(
-		errorType: "TradingApi" | "DataApi",
-		code: string | number,
-		message: string,
-		details?: any
-	): DhanApiError {
+	private createDhanApiError(errorType: "TradingApi" | "DataApi", code: string | number, message: string, details?: any): DhanApiError {
 		return {
 			errorType,
 			code,
@@ -864,17 +880,19 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private handleDataApiError(connectionId: number, errorCode: number, details?: any): void {
 		const message = this.getDataApiErrorMessage(errorCode);
 		const error = this.createDhanApiError("DataApi", errorCode, message, details);
-		
+
 		console.error(`Connection ${connectionId} Data API Error [${errorCode}]: ${message}`);
-		
+
 		// Handle critical errors that require connection closure
-		if ([
-			DataApiErrorCode.ACCESS_TOKEN_EXPIRED,
-			DataApiErrorCode.AUTHENTICATION_FAILED,
-			DataApiErrorCode.ACCESS_TOKEN_INVALID,
-			DataApiErrorCode.CLIENT_ID_INVALID,
-			DataApiErrorCode.DATA_APIS_NOT_SUBSCRIBED,
-		].includes(errorCode)) {
+		if (
+			[
+				DataApiErrorCode.ACCESS_TOKEN_EXPIRED,
+				DataApiErrorCode.AUTHENTICATION_FAILED,
+				DataApiErrorCode.ACCESS_TOKEN_INVALID,
+				DataApiErrorCode.CLIENT_ID_INVALID,
+				DataApiErrorCode.DATA_APIS_NOT_SUBSCRIBED,
+			].includes(errorCode)
+		) {
 			console.error(`Critical error for connection ${connectionId}. Closing connection.`);
 			this.cleanupConnection(connectionId, false);
 		}
@@ -888,7 +906,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			}
 		}
 
-		this.emit("error", { connectionId, error });
+		this.emit("error", {connectionId, error});
 	}
 
 	/**
@@ -897,14 +915,11 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private handleTradingApiError(connectionId: number, errorCode: string, details?: any): void {
 		const message = this.getTradingApiErrorMessage(errorCode);
 		const error = this.createDhanApiError("TradingApi", errorCode, message, details);
-		
+
 		console.error(`Connection ${connectionId} Trading API Error [${errorCode}]: ${message}`);
-		
+
 		// Handle critical errors
-		if ([
-			TradingApiErrorCode.INVALID_AUTHENTICATION,
-			TradingApiErrorCode.INVALID_ACCESS,
-		].includes(errorCode as TradingApiErrorCode)) {
+		if ([TradingApiErrorCode.INVALID_AUTHENTICATION, TradingApiErrorCode.INVALID_ACCESS].includes(errorCode as TradingApiErrorCode)) {
 			console.error(`Critical error for connection ${connectionId}. Closing connection.`);
 			this.cleanupConnection(connectionId, false);
 		}
@@ -918,7 +933,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			}
 		}
 
-		this.emit("error", { connectionId, error });
+		this.emit("error", {connectionId, error});
 	}
 
 	/**
@@ -926,25 +941,25 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	 */
 	private analyzeConnectionError(connectionId: number, error: Error): void {
 		const errorMessage = error.message.toLowerCase();
-		
+
 		// Check for authentication errors
-		if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+		if (errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
 			this.handleTradingApiError(connectionId, TradingApiErrorCode.INVALID_AUTHENTICATION);
 		}
 		// Check for access token expiry
-		else if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
+		else if (errorMessage.includes("403") || errorMessage.includes("forbidden")) {
 			this.handleDataApiError(connectionId, DataApiErrorCode.ACCESS_TOKEN_EXPIRED);
 		}
 		// Check for rate limiting
-		else if (errorMessage.includes('429') || errorMessage.includes('too many')) {
+		else if (errorMessage.includes("429") || errorMessage.includes("too many")) {
 			this.handleDataApiError(connectionId, DataApiErrorCode.TOO_MANY_REQUESTS);
 		}
 		// Check for server errors
-		else if (errorMessage.includes('500') || errorMessage.includes('internal server')) {
+		else if (errorMessage.includes("500") || errorMessage.includes("internal server")) {
 			this.handleDataApiError(connectionId, DataApiErrorCode.INTERNAL_SERVER_ERROR);
 		}
 		// Check for network errors
-		else if (errorMessage.includes('network') || errorMessage.includes('timeout') || errorMessage.includes('econnreset')) {
+		else if (errorMessage.includes("network") || errorMessage.includes("timeout") || errorMessage.includes("econnreset")) {
 			this.handleTradingApiError(connectionId, TradingApiErrorCode.NETWORK_ERROR);
 		}
 	}

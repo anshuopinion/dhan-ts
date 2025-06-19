@@ -1,4 +1,4 @@
-import { EventEmitter } from "events";
+import {EventEmitter} from "events";
 import {
 	DhanConfig,
 	LiveFeedResponse,
@@ -41,7 +41,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	private readonly maxInstrumentsPerMessage: number = 100;
 	private connectionCounter: number = 0;
 	private instanceId: string;
-	
+
 	// Mock data storage
 	private mockStockData: Map<string, MockStockData> = new Map();
 	private isRunning: boolean = false;
@@ -67,22 +67,22 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	 */
 	private generateBasePrice(): number {
 		const priceRanges = [
-			{ min: 10, max: 50, weight: 0.3 },    // Penny stocks
-			{ min: 50, max: 200, weight: 0.4 },   // Small/Mid cap
-			{ min: 200, max: 1000, weight: 0.2 }, // Large cap
-			{ min: 1000, max: 5000, weight: 0.1 } // Premium stocks
+			{min: 10, max: 50, weight: 0.3}, // Penny stocks
+			{min: 50, max: 200, weight: 0.4}, // Small/Mid cap
+			{min: 200, max: 1000, weight: 0.2}, // Large cap
+			{min: 1000, max: 5000, weight: 0.1}, // Premium stocks
 		];
 
 		const random = Math.random();
 		let cumulativeWeight = 0;
-		
+
 		for (const range of priceRanges) {
 			cumulativeWeight += range.weight;
 			if (random <= cumulativeWeight) {
 				return Math.random() * (range.max - range.min) + range.min;
 			}
 		}
-		
+
 		return 100; // Default
 	}
 
@@ -92,18 +92,18 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	private initializeMockData(instruments: Instrument[]) {
 		instruments.forEach(instrument => {
 			const key = this.createInstrumentKey(instrument);
-			
+
 			if (!this.mockStockData.has(key)) {
 				const basePrice = this.generateBasePrice();
 				const volatility = 0.5 + Math.random() * 2; // 0.5% to 2.5% volatility
-				
+
 				this.mockStockData.set(key, {
 					instrument,
 					basePrice,
 					currentPrice: basePrice,
 					volume: Math.floor(Math.random() * 100000) + 1000,
 					high: basePrice * (1 + Math.random() * 0.05), // Up to 5% higher
-					low: basePrice * (1 - Math.random() * 0.05),  // Up to 5% lower
+					low: basePrice * (1 - Math.random() * 0.05), // Up to 5% lower
 					lastTradeTime: Date.now(),
 					volatility,
 				});
@@ -188,14 +188,14 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	 */
 	private async simulateConnection(connectionId: number): Promise<void> {
 		const connection = this.connections.get(connectionId)!;
-		
+
 		if (!connection.isActive) {
 			// Simulate connection delay
 			await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-			
+
 			connection.isActive = true;
 			console.log(`🎭 Mock: Connection ${connectionId} established`);
-			this.emit("connect", { connectionId });
+			this.emit("connect", {connectionId});
 		}
 	}
 
@@ -222,7 +222,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 			const allInstruments: Instrument[] = [];
 			batches.forEach(batch => allInstruments.push(...batch));
 			const numUpdates = Math.floor(Math.random() * 5) + 1; // 1-5 updates per interval
-			
+
 			for (let i = 0; i < numUpdates && i < allInstruments.length; i++) {
 				const randomIndex = Math.floor(Math.random() * allInstruments.length);
 				const instrument = allInstruments[randomIndex];
@@ -242,10 +242,10 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 		// Simulate price movement
 		const priceChange = (Math.random() - 0.5) * 2 * stockData.volatility * 0.01;
 		const newPrice = stockData.currentPrice * (1 + priceChange);
-		
+
 		// Keep price within reasonable bounds
-		const maxPrice = stockData.basePrice * 1.10; // Max 10% from base
-		const minPrice = stockData.basePrice * 0.90; // Min 10% from base
+		const maxPrice = stockData.basePrice * 1.1; // Max 10% from base
+		const minPrice = stockData.basePrice * 0.9; // Min 10% from base
 		stockData.currentPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
 
 		// Update high/low
@@ -278,7 +278,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 		}
 
 		// Emit the mock data
-		this.emit("message", { connectionId, data: mockResponse });
+		this.emit("message", {connectionId, data: mockResponse});
 	}
 
 	/**
@@ -323,14 +323,14 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 		// Generate mock market depth
 		const buyDepth: DepthLevel[] = [];
 		const sellDepth: DepthLevel[] = [];
-		
+
 		for (let i = 0; i < 5; i++) {
 			buyDepth.push({
 				quantity: Math.floor(Math.random() * 5000) + 500,
 				orders: Math.floor(Math.random() * 20) + 5,
 				price: parseFloat((stockData.currentPrice - (i + 1) * 0.5).toFixed(2)),
 			});
-			
+
 			sellDepth.push({
 				quantity: Math.floor(Math.random() * 5000) + 500,
 				orders: Math.floor(Math.random() * 20) + 5,
@@ -368,7 +368,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	 */
 	async unsubscribe(instruments: Instrument[]): Promise<void> {
 		console.log(`🎭 Mock: Unsubscribing from ${instruments.length} instruments`);
-		
+
 		// Remove from all connections
 		for (const [connectionId, connection] of this.connections) {
 			connection.subscribedBatches.clear();
@@ -379,7 +379,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	/**
 	 * Get connection status
 	 */
-	getConnectionStatus(): Array<{ connectionId: number; state: string; instrumentCount: number; connectionIdString: string }> {
+	getConnectionStatus(): Array<{connectionId: number; state: string; instrumentCount: number; connectionIdString: string}> {
 		return Array.from(this.connections.entries()).map(([id, info]) => ({
 			connectionId: id,
 			state: info.isActive ? "connected" : "disconnected",
@@ -393,7 +393,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	 */
 	close(): void {
 		console.log("🎭 Mock: Closing all connections");
-		
+
 		for (const [connectionId, connection] of this.connections) {
 			if (connection.mockInterval) {
 				clearInterval(connection.mockInterval);
@@ -401,7 +401,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 			}
 			connection.isActive = false;
 		}
-		
+
 		this.connections.clear();
 		this.mockStockData.clear();
 	}
@@ -411,10 +411,10 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 	 */
 	simulateMarketEvent(eventType: "high_volume" | "price_spike" | "crash") {
 		console.log(`🎭 Mock: Simulating ${eventType} event`);
-		
+
 		const allStocks = Array.from(this.mockStockData.values());
 		const affectedStocks = allStocks.slice(0, Math.floor(allStocks.length * 0.1)); // Affect 10% of stocks
-		
+
 		affectedStocks.forEach(stock => {
 			switch (eventType) {
 				case "high_volume":
@@ -424,7 +424,7 @@ export class MockMultiConnectionLiveFeed extends EventEmitter {
 					stock.currentPrice *= 1.05 + Math.random() * 0.05; // 5-10% spike
 					break;
 				case "crash":
-					stock.currentPrice *= 0.90 - Math.random() * 0.05; // 5-10% drop
+					stock.currentPrice *= 0.9 - Math.random() * 0.05; // 5-10% drop
 					break;
 			}
 		});
