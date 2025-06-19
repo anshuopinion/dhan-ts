@@ -1,4 +1,4 @@
-import {DhanFeed} from "../src";
+import {DhanFeed} from "dhan-ts";
 import {DhanConfig, DhanEnv, ExchangeSegment, FeedRequestCode, Instrument, LiveFeedResponse} from "../src/types";
 import * as fs from "fs";
 import * as path from "path";
@@ -57,9 +57,9 @@ class MultiConnectionDemo {
 		}
 	> = new Map();
 
-	constructor(useMockFeed: boolean = true, maxInstruments: number = 500) {
+	constructor(useMockFeed: boolean = false, maxInstruments: number = 500) {
 		this.dhanFeed = new DhanFeed(config);
-		this.useMockFeed = useMockFeed;
+		this.useMockFeed = false;
 		this.maxInstruments = maxInstruments;
 	}
 
