@@ -1,5 +1,5 @@
 import {DhanFeed} from "dhan-ts";
-import {DhanConfig, DhanEnv, ExchangeSegment, FeedRequestCode, Instrument, LiveFeedResponse} from "../src/types";
+import {DhanConfig, DhanEnv, ExchangeSegment, FeedRequestCode, Instrument, LiveFeedResponse} from "dhan-ts";
 import * as fs from "fs";
 import * as path from "path";
 import dotenv from "dotenv";
