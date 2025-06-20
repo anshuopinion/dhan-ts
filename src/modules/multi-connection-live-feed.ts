@@ -682,75 +682,75 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		}));
 	}
 
-	// Parsing methods (same as in LiveFeed)
+	// Parsing methods (fixed according to documentation)
 	private parseTickerPacket(data: Buffer): TickerResponse {
 		return {
 			type: "ticker",
-			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
-			securityId: data.readUInt32LE(4),
-			lastTradedPrice: data.readFloatLE(8),
-			lastTradedTime: data.readUInt32LE(12),
+			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
+			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
+			lastTradedPrice: data.readFloatLE(8), // Bytes 8-11 (after 8-byte header)
+			lastTradedTime: data.readUInt32LE(12), // Bytes 12-15
 		};
 	}
 
 	private parseQuotePacket(data: Buffer): QuoteResponse {
 		return {
 			type: "quote",
-			exchangeSegment: data.readUInt8(1),
-			securityId: data.readUInt32LE(4),
-			lastTradedPrice: data.readFloatLE(8),
-			lastTradedQuantity: data.readUInt16LE(12),
-			lastTradedTime: data.readUInt32LE(14),
-			averageTradePrice: data.readFloatLE(18),
-			volumeTraded: data.readUInt32LE(22),
-			totalBuyQuantity: data.readUInt32LE(26),
-			totalSellQuantity: data.readUInt32LE(30),
-			openPrice: data.readFloatLE(34),
-			highPrice: data.readFloatLE(38),
-			lowPrice: data.readFloatLE(42),
-			closePrice: data.readFloatLE(46),
+			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
+			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
+			lastTradedPrice: data.readFloatLE(8), // Bytes 9-12 (index 8-11)
+			lastTradedQuantity: data.readUInt16LE(12), // Bytes 13-14 (index 12-13)
+			lastTradedTime: data.readUInt32LE(14), // Bytes 15-18 (index 14-17)
+			averageTradePrice: data.readFloatLE(18), // Bytes 19-22 (index 18-21)
+			volumeTraded: data.readUInt32LE(22), // Bytes 23-26 (index 22-25)
+			totalSellQuantity: data.readUInt32LE(26), // Bytes 27-30 (index 26-29)
+			totalBuyQuantity: data.readUInt32LE(30), // Bytes 31-34 (index 30-33)
+			openPrice: data.readFloatLE(34), // Bytes 35-38 (index 34-37)
+			closePrice: data.readFloatLE(38), // Bytes 39-42 (index 38-41)
+			highPrice: data.readFloatLE(42), // Bytes 43-46 (index 42-45)
+			lowPrice: data.readFloatLE(46), // Bytes 47-50 (index 46-49)
 		};
 	}
 
 	private parseOIDataPacket(data: Buffer): OiDataResponse {
 		return {
 			type: "oi_data",
-			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
-			securityId: data.readUInt32LE(4),
-			openInterest: data.readUInt32LE(8),
+			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
+			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
+			openInterest: data.readUInt32LE(8), // Bytes 8-11 (after 8-byte header)
 		};
 	}
 
 	private parsePrevClosePacket(data: Buffer): PrevCloseResponse {
 		return {
 			type: "prev_close",
-			exchangeSegment: data.readUInt8(1), // Should be offset 1, not 3
-			securityId: data.readUInt32LE(4),
-			previousClosePrice: data.readFloatLE(8),
-			previousOpenInterest: data.readUInt32LE(12),
+			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
+			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
+			previousClosePrice: data.readFloatLE(8), // Bytes 8-11 (after 8-byte header)
+			previousOpenInterest: data.readUInt32LE(12), // Bytes 12-15
 		};
 	}
 
 	private parseFullMarketDataPacket(data: Buffer): FullMarketDataResponse {
 		const packet: FullMarketDataResponse = {
 			type: "full",
-			exchangeSegment: data.readUInt8(1),
-			securityId: data.readUInt32LE(4),
-			lastTradedPrice: data.readFloatLE(8),
-			lastTradedQuantity: data.readUInt16LE(12),
-			lastTradedTime: data.readUInt32LE(14),
-			averageTradePrice: data.readFloatLE(18),
-			volumeTraded: data.readUInt32LE(22),
-			totalBuyQuantity: data.readUInt32LE(26),
-			totalSellQuantity: data.readUInt32LE(30),
-			openInterest: data.readUInt32LE(34),
-			openInterestDayHigh: data.readUInt32LE(38),
-			openInterestDayLow: data.readUInt32LE(42),
-			openPrice: data.readFloatLE(46),
-			closePrice: data.readFloatLE(50),
-			highPrice: data.readFloatLE(54),
-			lowPrice: data.readFloatLE(58),
-			marketDepth: this.parseMarketDepth(data.slice(62, 162)),
+			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
+			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
+			lastTradedPrice: data.readFloatLE(8), // Bytes 8-11 (after 8-byte header)
+			lastTradedQuantity: data.readUInt16LE(12), // Bytes 12-13
+			lastTradedTime: data.readUInt32LE(14), // Bytes 14-17
+			averageTradePrice: data.readFloatLE(18), // Bytes 18-21
+			volumeTraded: data.readUInt32LE(22), // Bytes 22-25
+			totalSellQuantity: data.readUInt32LE(26), // Bytes 26-29
+			totalBuyQuantity: data.readUInt32LE(30), // Bytes 30-33
+			openInterest: data.readUInt32LE(34), // Bytes 34-37
+			openInterestDayHigh: data.readUInt32LE(38), // Bytes 38-41
+			openInterestDayLow: data.readUInt32LE(42), // Bytes 42-45
+			openPrice: data.readFloatLE(46), // Bytes 46-49
+			closePrice: data.readFloatLE(50), // Bytes 50-53
+			highPrice: data.readFloatLE(54), // Bytes 54-57
+			lowPrice: data.readFloatLE(58), // Bytes 58-61
+			marketDepth: this.parseMarketDepth(data.slice(62, 162)), // Bytes 62-161 (100 bytes)
 		};
 
 		return packet;
@@ -766,15 +766,15 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			const offset = i * 20; // Each packet is 20 bytes
 
 			const buyLevel: DepthLevel = {
-				quantity: data.readInt32LE(offset), // Bytes 1-4: Bid Quantity
-				orders: data.readInt16LE(offset + 8), // Bytes 9-10: No. of Bid Orders
-				price: data.readFloatLE(offset + 12), // Bytes 13-16: Bid Price
+				quantity: data.readInt32LE(offset), // Bytes 0-3: Bid Quantity
+				orders: data.readInt16LE(offset + 8), // Bytes 8-9: No. of Bid Orders
+				price: data.readFloatLE(offset + 12), // Bytes 12-15: Bid Price
 			};
 
 			const sellLevel: DepthLevel = {
-				quantity: data.readInt32LE(offset + 4), // Bytes 5-8: Ask Quantity
-				orders: data.readInt16LE(offset + 10), // Bytes 11-12: No. of Ask Orders
-				price: data.readFloatLE(offset + 16), // Bytes 17-20: Ask Price
+				quantity: data.readInt32LE(offset + 4), // Bytes 4-7: Ask Quantity
+				orders: data.readInt16LE(offset + 10), // Bytes 10-11: No. of Ask Orders
+				price: data.readFloatLE(offset + 16), // Bytes 16-19: Ask Price
 			};
 
 			depth.buy.push(buyLevel);
