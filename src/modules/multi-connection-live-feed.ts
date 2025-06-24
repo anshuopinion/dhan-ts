@@ -449,7 +449,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 			case 5: // FeedResponseCode.OI
 				parsedData = this.parseOIDataPacket(data);
 				break;
-			case 6: // FeedResponseCode.PREV_CLOSE
+			case 6: // FeedResponseCode.PREV_CLOSE (automatically sent when subscribing to any instrument)
 				parsedData = this.parsePrevClosePacket(data);
 				break;
 			case 7: // FeedResponseCode.MARKET_STATUS
@@ -721,13 +721,19 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 		};
 	}
 
+	/**
+	 * Parse Previous Close packet (response code 6)
+	 * This packet is automatically sent whenever any instrument is subscribed
+	 * for any data packet type. No explicit subscription needed.
+	 * Contains previous day data for day-on-day comparison.
+	 */
 	private parsePrevClosePacket(data: Buffer): PrevCloseResponse {
 		return {
 			type: "prev_close",
 			exchangeSegment: data.readUInt8(3), // Byte 3 in response header
 			securityId: data.readUInt32LE(4), // Bytes 4-7 in response header
-			previousClosePrice: data.readFloatLE(8), // Bytes 8-11 (after 8-byte header)
-			previousOpenInterest: data.readUInt32LE(12), // Bytes 12-15
+			previousClosePrice: data.readFloatLE(8), // Bytes 9-12 (previous day closing price)
+			previousOpenInterest: data.readUInt32LE(12), // Bytes 13-16 (previous day open interest)
 		};
 	}
 
