@@ -42,9 +42,10 @@ export class MarketData {
 			from?: string;
 			to?: string;
 			daysAgo?: number;
+			symbol?: string;
 		}
 	): Promise<HistoricalDataResponse> {
-		const {interval, from, to, daysAgo, ...baseRequest} = request;
+		const {interval, from, to, daysAgo, symbol, ...baseRequest} = request;
 		let fromDate: Date, toDate: Date;
 
 		// Handle 'to' date first
@@ -84,6 +85,7 @@ export class MarketData {
 				...baseRequest,
 				toDate: formatInTimeZone(toDate, this.kolkataTimeZone, "yyyy-MM-dd"),
 				fromDate: formatInTimeZone(fromDate, this.kolkataTimeZone, "yyyy-MM-dd"),
+				...(symbol && {symbol}),
 			};
 
 			if (request.isFree) {
