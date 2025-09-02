@@ -681,3 +681,291 @@ export interface DhanHistoricalDataRequest {
 	END: number; // End timestamp in seconds
 	INTERVAL?: string; // Time interval (e.g., "1", "5", "15", "D", "W", "M")
 }
+
+// Stock Basic Details interfaces
+export interface StockBasicDetailsRequest {
+	Seg: number; // Segment (1 for NSE_EQ, 2 for NSE_FNO, etc.)
+	SecId: number; // Security ID
+}
+
+export interface IndexMembership {
+	idx_id: number;
+	name: string;
+	type: string;
+}
+
+export interface MarketDepthLevel {
+	bqt: number; // Buy quantity
+	sqt: number; // Sell quantity
+	bp: number; // Buy price
+	sp: number; // Sell price
+	BuyOrderNo: number; // Number of buy orders
+	SellOrderNo: number; // Number of sell orders
+}
+
+export interface StockBasicDetailsResponse {
+	// Basic Information
+	sid: number; // Security ID
+	exch: string; // Exchange
+	isin: string; // ISIN code
+	d_sym: string; // Display symbol (company name)
+	sym: string; // Symbol
+	d_inst: string; // Display instrument
+	seg: string; // Segment
+	sr: string; // Series
+	sec: string; // Sector
+	sub_sec: string; // Sub-sector
+	u_dp_nm: string; // Display name
+	seo: string; // SEO friendly name
+	
+	// Price Data
+	Ltp: number; // Last traded price
+	ch: number; // Change
+	p_ch: number; // Percentage change
+	vol: number; // Volume
+	hg: number; // Day high
+	lo: number; // Day low
+	op: number; // Open price
+	cl: number; // Previous close
+	atp: number; // Average trade price
+	
+	// Circuit Limits
+	uckt: number; // Upper circuit limit
+	lckt: number; // Lower circuit limit
+	
+	// Historical Performance Data
+	h5y: number; // 5 year high
+	l5y: number; // 5 year low
+	c5y: number; // 5 year change
+	chp5y: number; // 5 year change percentage
+	h4y: number; // 4 year high
+	l4y: number; // 4 year low
+	c4y: number; // 4 year change
+	chp4y: number; // 4 year change percentage
+	h3y: number; // 3 year high
+	l3y: number; // 3 year low
+	c3y: number; // 3 year change
+	chp3y: number; // 3 year change percentage
+	h2y: number; // 2 year high
+	l2y: number; // 2 year low
+	c2y: number; // 2 year change
+	chp2y: number; // 2 year change percentage
+	h1y: number; // 1 year high
+	l1y: number; // 1 year low
+	c1y: number; // 1 year change
+	chp1y: number; // 1 year change percentage
+	h9m: number; // 9 month high
+	l9m: number; // 9 month low
+	c9m: number; // 9 month change
+	chp9m: number; // 9 month change percentage
+	h6m: number; // 6 month high
+	l6m: number; // 6 month low
+	c6m: number; // 6 month change
+	chp6m: number; // 6 month change percentage
+	h3m: number; // 3 month high
+	l3m: number; // 3 month low
+	c3m: number; // 3 month change
+	chp3m: number; // 3 month change percentage
+	h1m: number; // 1 month high
+	l1m: number; // 1 month low
+	c1m: number; // 1 month change
+	chp1m: number; // 1 month change percentage
+	h2wk: number; // 2 week high
+	l2wk: number; // 2 week low
+	c2Wk: number; // 2 week change
+	chp2wk: number; // 2 week change percentage
+	h1wk: number; // 1 week high
+	l1wk: number; // 1 week low
+	c1Wk: number; // 1 week change
+	chp1wk: number; // 1 week change percentage
+	
+	// Technical Data
+	ltsz: number; // Lot size
+	mlpl: number; // Market lot price
+	tksz: number; // Tick size
+	
+	// Volume and Trade Data
+	vol_t_td: number; // Total volume traded
+	l_tr_qt: number; // Last trade quantity
+	t_b_qt: number; // Total buy quantity
+	t_s_qty: number; // Total sell quantity
+	
+	// Additional Data
+	oi: number; // Open interest
+	oi_ch: number; // Open interest change
+	oi_p_ch: number; // Open interest percentage change
+	ltt: string; // Last trade time
+	stk: number; // Strike price (for derivatives)
+	exdt: string; // Expiry date
+	op_tp: string; // Option type
+	expc: number; // Expiry code
+	jexpdt: number; // Java expiry date
+	mtf_rmp: number; // MTF rate
+	
+	// Index Membership
+	idx_lst: IndexMembership[];
+	
+	// Market Depth
+	submbp: MarketDepthLevel[];
+	
+	// Additional Technical Fields
+	r1: number; // Resistance 1
+	r2: number; // Resistance 2
+	r3: number; // Resistance 3
+	pivot: number; // Pivot point
+	s1: number; // Support 1
+	s2: number; // Support 2
+	s3: number; // Support 3
+	
+	// Additional Identifiers
+	u_id: number;
+	u_bid: number;
+	u_seg_id: number;
+	u_seg_cd: string;
+	u_inst_nm: string;
+	u_ex_nm: string;
+	u_d_iv: number;
+	inst_nm: string;
+	p_vol_f: string;
+	u_vol_f: string;
+	s_bc_dt: string; // Settlement date
+	dy_t_exp: number;
+	expt: string;
+	ltd: string;
+	nr_o_expj: number;
+	nr_f_expj: number;
+	nr_f_sid: number;
+}
+
+// Stock Fundamental Data interfaces
+export interface StockFundamentalRequest {
+	isins: string[]; // Array of ISIN codes
+}
+
+export interface CompanyValues {
+	"52_WEEK_HIGH": string;
+	"52_WEEK_LOW": string;
+	BOOK_VALUE: string;
+	BSE: string;
+	COMPANY_CLASSIFICATION: string;
+	DIVIDEND_YEILD: string;
+	FACE_VALUE: string;
+	INDUSTRY_NAME: string;
+	MARKET_CAP: string;
+	NSE: string;
+	PRICE_TO_BOOK_VALUE: string;
+	SECTOR: string;
+	STOCK_PE: string;
+	SUB_SECTOR: string;
+}
+
+export interface TTMFinancials {
+	DEPRECIATION: string;
+	EBITDA: string;
+	EPS: string;
+	EXPENSES: string;
+	INTEREST: string;
+	NET_PROFIT: string;
+	OPERATING_PROFIT: string;
+	OPM: string;
+	OTHER_INCOME: string;
+	PROFIT_BEFORE_TAX: string;
+	REVENUE: string;
+	SALES: string;
+	TAX: string;
+	TAX_PAYMENT_ABSOLUTE: string;
+}
+
+export interface BalanceSheetData {
+	CURRENT_ASSETS: string;
+	CURRENT_LIABILITIES: string;
+	CWIP: string; // Capital Work in Progress
+	FIXED_ASSETS: string;
+	INVESTMENTS: string;
+	MINORITY_INTEREST: string;
+	NON_CURRENT_LIABILITIES: string;
+	OTHER_ASSETS: string;
+	RESERVE_SURPLUS: string;
+	SHAREHOLDERs_CAPITAL: string;
+	SHARE_CAPITAL: string;
+	TOTAL_ASSETS: string;
+	TOTAL_EQUITY: string;
+	TOTAL_EQUITY_AND_LIABILITIES: string;
+	YEAR: string;
+}
+
+export interface CashFlowData {
+	CAPITAL_EXPENDITURE: string;
+	CHANGES_IN_WORKING_CAPITAL: string;
+	FINANCING_ACTIVITIES: string;
+	INVESTING_ACTIVITIES: string;
+	NET_CASH_FLOW: string;
+	OPERATING_ACTIVITIES: string;
+	YEAR: string;
+}
+
+export interface IncomeStatementData {
+	DEPRECIATION: string;
+	EBITDA: string;
+	EPS: string;
+	EXPENSES: string;
+	INTEREST: string;
+	NET_PROFIT: string;
+	OPERATING_PROFIT: string;
+	OPM: string;
+	OTHER_INCOME: string;
+	PROFIT_BEFORE_TAX: string;
+	REVENUE: string;
+	SALES: string;
+	TAX: string;
+	TAX_PAYMENT_ABSOLUTE: string;
+	YEAR: string;
+}
+
+export interface RevenueNetProfitData {
+	PROFIT: string;
+	PROFIT_GROWTH: string;
+	REVENUE: string;
+	REVENUE_GROWTH: string;
+	YEAR: string;
+}
+
+export interface ROCEROEData {
+	ROCE: string;
+	ROE: string;
+	TYPES_OF_COMPANY: string;
+	YEAR: string;
+}
+
+export interface ShareholdingPattern {
+	DII: string; // Domestic Institutional Investors
+	FII: string; // Foreign Institutional Investors
+	GOVERNMENT: string;
+	NO_OF_SHARE_HOLDERS: string;
+	OTHERS: string;
+	PROMOTER: string;
+	PUBLIC: string;
+	YEAR: string;
+}
+
+export interface StockFundamentalData {
+	CV: CompanyValues;
+	TTM_cy: TTMFinancials; // TTM Current Year
+	TTM_sy: TTMFinancials; // TTM Same Year
+	bs_c: BalanceSheetData; // Balance Sheet Consolidated
+	bs_s: BalanceSheetData; // Balance Sheet Standalone
+	cF_c: CashFlowData; // Cash Flow Consolidated
+	cF_s: CashFlowData; // Cash Flow Standalone
+	incomeStat_cq: IncomeStatementData; // Income Statement Current Quarter
+	incomeStat_cy: IncomeStatementData; // Income Statement Current Year
+	incomeStat_sq: IncomeStatementData; // Income Statement Same Quarter
+	incomeStat_sy: IncomeStatementData; // Income Statement Same Year
+	isin: string;
+	rNp_s: RevenueNetProfitData; // Revenue Net Profit Standalone
+	roce_roe: ROCEROEData;
+	sHp: ShareholdingPattern; // Shareholding Pattern
+}
+
+export interface StockFundamentalResponse {
+	data: StockFundamentalData[];
+}
