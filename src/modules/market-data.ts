@@ -1,5 +1,5 @@
 import {AxiosInstance} from "axios";
-import {MarketFeedRequest, HistoricalDataRequest, IntradayDataRequest, HistoricalDataResponse, TimeInterval, Candle} from "../types";
+import {MarketFeedRequest, HistoricalDataRequest, IntradayDataRequest, HistoricalDataResponse, TimeInterval, Candle, StockBasicDetailsRequest, StockBasicDetailsResponse, StockFundamentalRequest, StockFundamentalResponse} from "../types";
 import {subDays, setHours, setMinutes, isWeekend, isBefore, parseISO, isAfter, getDay, addDays} from "date-fns";
 import {toZonedTime, toDate, formatInTimeZone} from "date-fns-tz";
 import {FreeMarketData} from "../free/FreeMarketData";
@@ -450,5 +450,13 @@ export class MarketData {
 		}
 
 		return toDate(currentDate, {timeZone: this.kolkataTimeZone});
+	}
+
+	async getStockBasicDetails(request: StockBasicDetailsRequest): Promise<StockBasicDetailsResponse> {
+		return this.freeMarketData.getStockBasicDetails(request);
+	}
+
+	async getStockFundamentals(request: StockFundamentalRequest): Promise<StockFundamentalResponse> {
+		return this.freeMarketData.getStockFundamentals(request);
 	}
 }

@@ -1,5 +1,6 @@
 export {DhanHqClient} from "./dhan-hq-client";
 export {DhanFeed} from "./dhan-feed";
+export {FreeMarketData} from "./free/FreeMarketData";
 export * from "./types";
 export * from "./modules/orders";
 export * from "./modules/portfolio";

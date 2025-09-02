@@ -1,5 +1,5 @@
 import axios from "axios";
-import {IntradayDataRequest, HistoricalDataRequest, HistoricalDataResponse, DhanApiResponse} from "../types";
+import {IntradayDataRequest, HistoricalDataRequest, HistoricalDataResponse, DhanApiResponse, StockBasicDetailsRequest, StockBasicDetailsResponse, StockFundamentalRequest, StockFundamentalResponse} from "../types";
 import {searchBySecId} from "../constant/dhan";
 
 interface DhanHistoricalDataRequest {
@@ -15,6 +15,7 @@ interface DhanHistoricalDataRequest {
 
 export class FreeMarketData {
 	private readonly DHAN_API_URL = "https://ticks.dhan.co";
+	private readonly SCANX_API_URL = "https://scanx.dhan.co";
 
 	// Function for intraday data (1-minute data)
 	async getFreeIntradayHistoricalData(request: IntradayDataRequest): Promise<HistoricalDataResponse> {
@@ -152,5 +153,75 @@ export class FreeMarketData {
 			default:
 				return "daily";
 		}
+	}
+
+	// Function to get stock basic details using ScanX API
+	async getStockBasicDetails(request: StockBasicDetailsRequest): Promise<StockBasicDetailsResponse> {
+		try {
+			const requestPayload = {
+				Data: {
+					Seg: request.Seg,
+					SecId: request.SecId
+				}
+			};
+
+			const response = await axios.post<{code: number; data: StockBasicDetailsResponse; remarks: string}>(
+				`${this.SCANX_API_URL}/scanx/rtscrdt`,
+				requestPayload,
+				{
+					headers: this.getScanxApiHeaders()
+				}
+			);
+
+			if (response.data.code !== 0) {
+				throw new Error(`ScanX API Error: ${response.data.remarks || 'Unknown error'}`);
+			}
+
+			if (!response.data.data) {
+				throw new Error("No stock data found for the given security ID");
+			}
+
+			return response.data.data;
+		} catch (error: any) {
+			console.error("Error fetching stock basic details:", error);
+			throw new Error(`Failed to fetch stock basic details: ${error.message}`);
+		}
+	}
+
+	// Function to get stock fundamental data using ScanX API
+	async getStockFundamentals(request: StockFundamentalRequest): Promise<StockFundamentalResponse> {
+		try {
+			const requestPayload = {
+				data: {
+					isins: request.isins
+				}
+			};
+
+			const response = await axios.post<StockFundamentalResponse>(
+				`${this.SCANX_API_URL}/scanx/fundamental`,
+				requestPayload,
+				{
+					headers: this.getScanxApiHeaders()
+				}
+			);
+
+			if (!response.data.data || response.data.data.length === 0) {
+				throw new Error("No fundamental data found for the given ISIN codes");
+			}
+
+			return response.data;
+		} catch (error: any) {
+			console.error("Error fetching stock fundamental data:", error);
+			throw new Error(`Failed to fetch stock fundamental data: ${error.message}`);
+		}
+	}
+
+	// Utility function to get ScanX API headers
+	private getScanxApiHeaders() {
+		return {
+			accept: "application/json, text/plain, */*",
+			"accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+			"content-type": "application/json",
+		};
 	}
 }
