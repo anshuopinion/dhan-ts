@@ -55,17 +55,15 @@ export class FreeMarketData {
 	}
 
 	// Function for historical data (Daily/Weekly/Monthly)
-	async getFreeHistoricalData(request: HistoricalDataRequest & {interval?: "D" | "W" | "M"}): Promise<HistoricalDataResponse> {
-		const searchSymbol = searchBySecId(request.securityId);
-
-		if (!searchSymbol) {
-			throw new Error("Symbol not found");
+	async getFreeHistoricalData(request: HistoricalDataRequest & {interval?: "D" | "W" | "M"; symbol?: string}): Promise<HistoricalDataResponse> {
+		if (!request.symbol) {
+			throw new Error("Symbol is required for daily/weekly/monthly data. Please provide the symbol parameter.");
 		}
 
 		try {
 			const dhanRequest: DhanHistoricalDataRequest = {
 				EXCH: "NSE",
-				SYM: searchSymbol.symbol,
+				SYM: request.symbol,
 				SEG: "E",
 				INST: "EQUITY",
 				START: this.dateToTimestamp(request.fromDate),

@@ -455,22 +455,26 @@ async function demoMarketData() {
 
 async function allTimeFrameCandles() {
 	// Combined all time frame candles
-	const historical = await dhanClient.marketData.getProcessedCandleData({
+	const yesterdayData = await dhanClient.marketData.getProcessedCandleData({
 		exchangeSegment: ExchangeSegmentText.NSE_EQ,
-		expiryCode: 0,
-		instrument: InstrumentToken.EQUITY,
-		interval: TimeInterval.MIN_30,
-		securityId: "1041",
-		daysAgo: 2,
-		// from: "2025-01-17",
-		to: "2025-01-17",
-		isFree: true,
+        instrument: InstrumentToken.EQUITY,
+        expiryCode: 0,
+        interval: TimeInterval.DAY_1,
+        daysAgo: 2,
+		symbol:"DWARKESH",
+        securityId: "25855",
+        to: "2025-09-02",
+        isFree: true,
 	});
 
-	console.log(
-		"Historical Data:",
-		historical.timestamp.map((time: number) => new Date(time * 1000).toLocaleDateString())
-	);
+	
+
+
+if (yesterdayData.close.length > 0) {
+        const lastClose = yesterdayData.close[yesterdayData.close.length - 1];
+
+      console.log("Last Close",lastClose)
+      }
 }
 
 async function demoScanner() {
@@ -923,10 +927,10 @@ async function runComprehensiveDemo() {
 		// await demoFunds();
 		// await demoEDIS();
 		// await demoMarketData();
-		// await allTimeFrameCandles();
+		await allTimeFrameCandles();
 		// await demoScanner();
-		await demoStockBasicDetails();
-		await demoStockFundamentals();
+		// await demoStockBasicDetails();
+		// await demoStockFundamentals();
 		// await demoForeverOrders();
 		// await demoTradersControl();
 		// await demoStatements();
