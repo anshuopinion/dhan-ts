@@ -17,7 +17,8 @@
 		"prepublishOnly": "npm run build",
 		"test": "jest",
 		"demo:multiple": "npx ts-node demo/demo-for-multiple.ts",
-		"demo:multiple:live": "npx ts-node demo/demo-for-multiple.ts --live"
+		"demo:multiple:live": "npx ts-node demo/demo-for-multiple.ts --live",
+		"test:prev-close": "npx ts-node demo/test-prev-close.ts"
 	},
 	"keywords": [
 		"dhan",

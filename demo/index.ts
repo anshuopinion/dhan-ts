@@ -648,14 +648,14 @@ async function demoMultiConnectionLiveFeed() {
 		});
 
 		// Subscribe to different instrument sets with different feed types
-		console.log("📈 Subscribing to first set of instruments (TICKER)...");
-		await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet1, FeedRequestCode.SUBSCRIBE_TICKER);
+		// console.log("📈 Subscribing to first set of instruments (TICKER)...");
+		// await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet1, FeedRequestCode.SUBSCRIBE_TICKER);
 
 		console.log("📊 Subscribing to same instruments for QUOTE data...");
 		await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet1, FeedRequestCode.SUBSCRIBE_QUOTE);
 
-		console.log("📋 Subscribing to same instruments for FULL market data...");
-		await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet1, FeedRequestCode.SUBSCRIBE_FULL);
+		// console.log("📋 Subscribing to same instruments for FULL market data...");
+		// await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet1, FeedRequestCode.SUBSCRIBE_FULL);
 
 		// console.log("📊 Subscribing to second set of instruments (QUOTE)...");
 		// await dhanFeed.multiConnectionLiveFeed.subscribe(instrumentSet2, FeedRequestCode.SUBSCRIBE_QUOTE);
