@@ -328,7 +328,7 @@ export interface EdisInquiryResponse {
 }
 
 export interface MarketFeedRequest {
-	[exchangeSegment: number]: number[];
+	[exchangeSegment: string]: number[];
 }
 
 export interface HistoricalDataRequest {
@@ -968,4 +968,80 @@ export interface StockFundamentalData {
 
 export interface StockFundamentalResponse {
 	data: StockFundamentalData[];
+}
+
+// Market Feed Response Types
+export interface LTPInstrumentData {
+	last_price: number;
+}
+
+export interface MarketLTPResponse {
+	data: {
+		[exchangeSegment: string]: {
+			[securityId: string]: LTPInstrumentData;
+		};
+	};
+	status: string;
+}
+
+export interface OHLCInstrumentData {
+	last_price: number;
+	ohlc: {
+		open: number;
+		close: number;
+		high: number;
+		low: number;
+	};
+}
+
+export interface MarketOHLCResponse {
+	data: {
+		[exchangeSegment: string]: {
+			[securityId: string]: OHLCInstrumentData;
+		};
+	};
+	status: string;
+}
+
+export interface QuoteDepthLevel {
+	quantity: number;
+	orders: number;
+	price: number;
+}
+
+export interface QuoteDepth {
+	buy: QuoteDepthLevel[];
+	sell: QuoteDepthLevel[];
+}
+
+export interface QuoteInstrumentData {
+	average_price: number;
+	buy_quantity: number;
+	sell_quantity: number;
+	depth: QuoteDepth;
+	last_price: number;
+	last_quantity: number;
+	last_trade_time: string;
+	lower_circuit_limit: number;
+	upper_circuit_limit: number;
+	net_change: number;
+	ohlc: {
+		open: number;
+		close: number;
+		high: number;
+		low: number;
+	};
+	oi: number;
+	oi_day_high: number;
+	oi_day_low: number;
+	volume: number;
+}
+
+export interface MarketQuoteResponse {
+	data: {
+		[exchangeSegment: string]: {
+			[securityId: string]: QuoteInstrumentData;
+		};
+	};
+	status: string;
 }

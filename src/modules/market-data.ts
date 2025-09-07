@@ -1,5 +1,5 @@
 import {AxiosInstance} from "axios";
-import {MarketFeedRequest, HistoricalDataRequest, IntradayDataRequest, HistoricalDataResponse, TimeInterval, Candle, StockBasicDetailsRequest, StockBasicDetailsResponse, StockFundamentalRequest, StockFundamentalResponse} from "../types";
+import {MarketFeedRequest, HistoricalDataRequest, IntradayDataRequest, HistoricalDataResponse, TimeInterval, Candle, StockBasicDetailsRequest, StockBasicDetailsResponse, StockFundamentalRequest, StockFundamentalResponse, MarketLTPResponse, MarketOHLCResponse, MarketQuoteResponse} from "../types";
 import {subDays, setHours, setMinutes, isWeekend, isBefore, parseISO, isAfter, getDay, addDays} from "date-fns";
 import {toZonedTime, toDate, formatInTimeZone} from "date-fns-tz";
 import {FreeMarketData} from "../free/FreeMarketData";
@@ -11,18 +11,18 @@ export class MarketData {
 		this.freeMarketData = new FreeMarketData();
 	}
 
-	async getLTP(request: MarketFeedRequest): Promise<any> {
-		const response = await this.axiosInstance.post("/v2/marketfeed/ltp", request);
+	async getLTP(request: MarketFeedRequest): Promise<MarketLTPResponse> {
+		const response = await this.axiosInstance.post<MarketLTPResponse>("/v2/marketfeed/ltp", request);
 		return response.data;
 	}
 
-	async getOHLC(request: MarketFeedRequest): Promise<any> {
-		const response = await this.axiosInstance.post("/v2/marketfeed/ohlc", request);
+	async getOHLC(request: MarketFeedRequest): Promise<MarketOHLCResponse> {
+		const response = await this.axiosInstance.post<MarketOHLCResponse>("/v2/marketfeed/ohlc", request);
 		return response.data;
 	}
 
-	async getQuote(request: MarketFeedRequest): Promise<any> {
-		const response = await this.axiosInstance.post("/v2/marketfeed/quote", request);
+	async getQuote(request: MarketFeedRequest): Promise<MarketQuoteResponse> {
+		const response = await this.axiosInstance.post<MarketQuoteResponse>("/v2/marketfeed/quote", request);
 		return response.data;
 	}
 
