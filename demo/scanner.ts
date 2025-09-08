@@ -8,7 +8,6 @@ export async function demoScanner(dhanClient: DhanHqClient) {
 		// Example: Pass any request data directly to the API
 		console.log("\n=== Example API Request ===");
 
-		// This is just an example - you can pass any structure the API accepts
 		const exampleRequest = {
 			data: {
 				sort: "Mcap",
