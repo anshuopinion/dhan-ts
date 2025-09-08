@@ -167,7 +167,10 @@ export class FreeMarketData {
 				`${this.SCANX_API_URL}/scanx/rtscrdt`,
 				requestPayload,
 				{
-					headers: this.getScanxApiHeaders()
+					headers: {
+						...this.getScanxApiHeaders(),
+						...request.headers
+					}
 				}
 			);
 
@@ -199,7 +202,10 @@ export class FreeMarketData {
 				`${this.SCANX_API_URL}/scanx/fundamental`,
 				requestPayload,
 				{
-					headers: this.getScanxApiHeaders()
+					headers: {
+						...this.getScanxApiHeaders(),
+						...request.headers
+					}
 				}
 			);
 

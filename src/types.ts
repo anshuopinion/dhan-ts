@@ -684,10 +684,9 @@ export interface DhanHistoricalDataRequest {
 
 // Stock Basic Details interfaces
 export interface StockBasicDetailsRequest {
-  Data:{
-      Seg: number;
-      SecId: number;
-  }
+	Seg: number; // Segment (1 for NSE_EQ, 2 for NSE_FNO, etc.)
+	SecId: number; // Security ID
+	headers?: Record<string, string>; // Optional custom headers
 }
 
 export interface IndexMembership {
@@ -706,8 +705,7 @@ export interface MarketDepthLevel {
 }
 
 export interface StockBasicDetailsResponse {
-	data:{
-		// Basic Information
+	// Basic Information
 	sid: number; // Security ID
 	exch: string; // Exchange
 	isin: string; // ISIN code
@@ -838,12 +836,12 @@ export interface StockBasicDetailsResponse {
 	nr_o_expj: number;
 	nr_f_expj: number;
 	nr_f_sid: number;
-	}
 }
 
 // Stock Fundamental Data interfaces
 export interface StockFundamentalRequest {
-    data:{isins: string[]}
+	isins: string[]; // Array of ISIN codes
+	headers?: Record<string, string>; // Optional custom headers
 }
 
 export interface CompanyValues {
