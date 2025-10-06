@@ -74,7 +74,7 @@ export class FreeMarketData {
     request: HistoricalDataRequest & {
       interval?: "D" | "W" | "M";
       symbol?: string;
-      webAccess: string;
+      webAccess?: string;
     }
   ): Promise<HistoricalDataResponse> {
     if (!request.symbol) {
@@ -172,7 +172,12 @@ export class FreeMarketData {
   }
 
   // Utility function to get API headers
-  private getApiHeaders(webAccess: string) {
+  private getApiHeaders(webAccess?: string) {
+    if (!webAccess) {
+      throw new Error(
+        "webAccess token is required for free market data APIs. Please provide it in DhanConfig or in the request."
+      );
+    }
     return {
       Accept: "*/*",
       "Content-Type": "application/json",

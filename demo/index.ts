@@ -27,6 +27,7 @@ const config: DhanConfig = {
   accessToken: process.env.ACCESS_TOKEN!,
   clientId: process.env.DHAN_CLIENT_ID!,
   env: DhanEnv.PROD,
+  webAccess:process.env.WEB_ACCCES_TOKEN,
 };
 
 const dhanClient = new DhanHqClient(config);

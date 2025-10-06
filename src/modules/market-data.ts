@@ -13,6 +13,7 @@ import {
   MarketLTPResponse,
   MarketOHLCResponse,
   MarketQuoteResponse,
+  DhanConfig,
 } from "../types";
 import {
   subDays,
@@ -31,8 +32,13 @@ import { FreeMarketData } from "../free/FreeMarketData";
 export class MarketData {
   private readonly kolkataTimeZone = "Asia/Kolkata";
   private freeMarketData: FreeMarketData;
-  constructor(private readonly axiosInstance: AxiosInstance) {
+  private readonly webAccess?: string;
+  constructor(
+    private readonly axiosInstance: AxiosInstance,
+    config?: DhanConfig
+  ) {
     this.freeMarketData = new FreeMarketData();
+    this.webAccess = config?.webAccess;
   }
 
   async getLTP(request: MarketFeedRequest): Promise<MarketLTPResponse> {
@@ -86,10 +92,10 @@ export class MarketData {
       to?: string;
       daysAgo?: number;
       symbol?: string;
-	  webAccess:string;
+      webAccess?: string;
     }
   ): Promise<HistoricalDataResponse> {
-    const { interval, from, to, daysAgo, symbol, ...baseRequest } = request;
+    const { interval, from, to, daysAgo, symbol, webAccess, ...baseRequest } = request;
     let fromDate: Date, toDate: Date;
 
     // Handle 'to' date first
@@ -134,6 +140,7 @@ export class MarketData {
           "yyyy-MM-dd"
         ),
         ...(symbol && { symbol }),
+        webAccess: webAccess || this.webAccess,
       };
 
       if (request.isFree) {
@@ -155,6 +162,7 @@ export class MarketData {
         interval: this.getClosestSupportedIntradayInterval(
           intervalInfo.baseInterval
         ).toString(),
+        webAccess: webAccess || this.webAccess,
       };
 
       if (request.isFree) {

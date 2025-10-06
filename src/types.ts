@@ -7,6 +7,7 @@ export interface DhanConfig {
   accessToken: string;
   env: DhanEnv;
   clientId: string;
+  webAccess?: string;
 }
 
 export enum OrderFlag {
@@ -348,7 +349,7 @@ export interface IntradayDataRequest {
   interval: string;
   fromDate: string;
   toDate: string;
-  webAccess: string;
+  webAccess?: string;
 }
 
 export interface HistoricalDataResponse {

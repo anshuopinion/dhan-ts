@@ -43,7 +43,7 @@ export class DhanHqClient {
     this.portfolio = new Portfolio(this.axiosInstance);
     this.funds = new Funds(this.axiosInstance);
     this.edis = new EDIS(this.axiosInstance);
-    this.marketData = new MarketData(this.axiosInstance);
+    this.marketData = new MarketData(this.axiosInstance, config);
     this.foreverOrders = new ForeverOrders(this.axiosInstance);
     this.tradersControl = new TradersControl(this.axiosInstance);
     this.statements = new Statements(this.axiosInstance);

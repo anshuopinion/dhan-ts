@@ -192,8 +192,7 @@ export async function allTimeFrameCandles(dhanClient: DhanHqClient) {
     symbol: "TCS",
     securityId: "11536",
     to: "2025-10-06",
-    isFree: false,
-    webAccess: process.env.WEB_ACCCES_TOKEN!,
+    isFree: true,
   });
 
   if (yesterdayData.close.length > 0) {
