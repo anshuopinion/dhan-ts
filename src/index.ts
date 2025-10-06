@@ -14,3 +14,4 @@ export * from "./modules/scanner-feed";
 export * from "./modules/live-feed";
 export * from "./modules/multi-connection-live-feed";
 export * from "./modules/market-depth-feed";
+export * from "./modules/authentication";

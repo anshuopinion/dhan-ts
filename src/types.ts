@@ -1047,3 +1047,89 @@ export interface MarketQuoteResponse {
 	};
 	status: string;
 }
+
+// Authentication Types
+
+// App-based (Individual) Authentication
+export interface GenerateConsentAppRequest {
+	dhanClientId: string;
+}
+
+export interface GenerateConsentAppResponse {
+	consentAppId: string;
+	consentAppStatus: string;
+	status: string;
+}
+
+export interface ConsumeConsentAppRequest {
+	tokenId: string;
+}
+
+export interface ConsumeConsentAppResponse {
+	dhanClientId: string;
+	dhanClientName: string;
+	dhanClientUcc: string;
+	givenPowerOfAttorney: boolean;
+	accessToken: string;
+	expiryTime: string;
+}
+
+// Partner-based Authentication
+export interface GenerateConsentPartnerResponse {
+	consentId: string;
+	consentStatus: string;
+}
+
+export interface ConsumeConsentPartnerRequest {
+	tokenId: string;
+}
+
+export interface ConsumeConsentPartnerResponse {
+	dhanClientId: string;
+	dhanClientName: string;
+	dhanClientUcc: string;
+	givenPowerOfAttorney: boolean;
+	accessToken: string;
+	expiryTime: string;
+}
+
+// Static IP Management
+export enum IPFlag {
+	PRIMARY = "PRIMARY",
+	SECONDARY = "SECONDARY",
+}
+
+export interface SetIPRequest {
+	dhanClientId: string;
+	ip: string;
+	ipFlag: IPFlag;
+}
+
+export interface ModifyIPRequest {
+	dhanClientId: string;
+	ip: string;
+	ipFlag: IPFlag;
+}
+
+export interface IPResponse {
+	message: string;
+	status: string;
+}
+
+export interface GetIPResponse {
+	modifyDateSecondary: string;
+	secondaryIP: string;
+	modifyDatePrimary: string;
+	primaryIP: string;
+}
+
+// User Profile
+export interface UserProfileResponse {
+	dhanClientId: string;
+	tokenValidity: string;
+	activeSegment: string;
+	ddpi: string;
+	mtf: string;
+	dataPlan: string;
+	dataValidity: string;
+}

@@ -9,6 +9,7 @@ import {ForeverOrders} from "./modules/forever-orders";
 import {TradersControl} from "./modules/traders-control";
 import {Statements} from "./modules/statements";
 import {Scanner} from "./modules/scanner-feed";
+import {Authentication} from "./modules/authentication";
 
 export class DhanHqClient {
 	private readonly axiosInstance: AxiosInstance;
@@ -21,6 +22,7 @@ export class DhanHqClient {
 	public readonly tradersControl: TradersControl;
 	public readonly statements: Statements;
 	public readonly scanner: Scanner;
+	public readonly authentication: Authentication;
 
 	constructor(config: DhanConfig) {
 		const baseURL = config.env === "PROD" ? "https://api.dhan.co" : "https://sandbox.dhan.co/v2";
@@ -43,5 +45,6 @@ export class DhanHqClient {
 		this.tradersControl = new TradersControl(this.axiosInstance);
 		this.statements = new Statements(this.axiosInstance);
 		this.scanner = new Scanner();
+		this.authentication = new Authentication(this.axiosInstance);
 	}
 }
