@@ -151,6 +151,9 @@ export enum OrderStatus {
   CANCELLED = "CANCELLED",
   TRADED = "TRADED",
   EXPIRED = "EXPIRED",
+  PART_TRADED = "PART_TRADED",
+  CLOSED = "CLOSED",
+  TRIGGERED = "TRIGGERED",
 }
 
 export enum PositionType {
@@ -1134,4 +1137,77 @@ export interface UserProfileResponse {
   mtf: string;
   dataPlan: string;
   dataValidity: string;
+}
+
+// Super Order Types
+export interface SuperOrderRequest {
+  dhanClientId: string;
+  correlationId?: string;
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegmentText;
+  productType: ProductType;
+  orderType: OrderType;
+  securityId: string;
+  quantity: number;
+  price: number;
+  targetPrice: number;
+  stopLossPrice: number;
+  trailingJump: number;
+}
+
+export interface SuperOrderResponse {
+  orderId: string;
+  orderStatus: OrderStatus;
+}
+
+export interface ModifySuperOrderRequest {
+  dhanClientId: string;
+  orderId: string;
+  orderType?: OrderType;
+  legName: LegName;
+  quantity?: number;
+  price?: number;
+  targetPrice?: number;
+  stopLossPrice?: number;
+  trailingJump?: number;
+}
+
+export interface SuperOrderLegDetail {
+  orderId: string;
+  legName: LegName;
+  transactionType: TransactionType;
+  totalQuantity?: number;
+  remainingQuantity: number;
+  triggeredQuantity: number;
+  price: number;
+  orderStatus: OrderStatus;
+  trailingJump: number;
+}
+
+export interface SuperOrderDetail {
+  dhanClientId: string;
+  orderId: string;
+  correlationId?: string;
+  orderStatus: OrderStatus;
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegmentText;
+  productType: ProductType;
+  orderType: OrderType;
+  validity: Validity;
+  tradingSymbol: string;
+  securityId: string;
+  quantity: number;
+  remainingQuantity: number;
+  ltp: number;
+  price: number;
+  afterMarketOrder: boolean;
+  legName: LegName;
+  exchangeOrderId: string;
+  createTime: string;
+  updateTime: string;
+  exchangeTime: string;
+  omsErrorDescription: string;
+  averageTradedPrice: number;
+  filledQty: number;
+  legDetails: SuperOrderLegDetail[];
 }

@@ -10,6 +10,7 @@ import { TradersControl } from "./modules/traders-control";
 import { Statements } from "./modules/statements";
 import { Scanner } from "./modules/scanner-feed";
 import { Authentication } from "./modules/authentication";
+import { SuperOrders } from "./modules/super-orders";
 
 export class DhanHqClient {
   private readonly axiosInstance: AxiosInstance;
@@ -23,6 +24,7 @@ export class DhanHqClient {
   public readonly statements: Statements;
   public readonly scanner: Scanner;
   public readonly authentication: Authentication;
+  public readonly superOrders: SuperOrders;
 
   constructor(config: DhanConfig) {
     const baseURL =
@@ -49,5 +51,6 @@ export class DhanHqClient {
     this.statements = new Statements(this.axiosInstance);
     this.scanner = new Scanner();
     this.authentication = new Authentication(this.axiosInstance);
+    this.superOrders = new SuperOrders(this.axiosInstance);
   }
 }

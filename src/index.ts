@@ -15,3 +15,4 @@ export * from "./modules/live-feed";
 export * from "./modules/multi-connection-live-feed";
 export * from "./modules/market-depth-feed";
 export * from "./modules/authentication";
+export * from "./modules/super-orders";
