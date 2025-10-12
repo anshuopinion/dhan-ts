@@ -11,6 +11,8 @@ import { Statements } from "./modules/statements";
 import { Scanner } from "./modules/scanner-feed";
 import { Authentication } from "./modules/authentication";
 import { SuperOrders } from "./modules/super-orders";
+import { OptionChain } from "./modules/option-chain";
+import { ExpiredOptionData } from "./modules/expired-option-data";
 
 export class DhanHqClient {
   private readonly axiosInstance: AxiosInstance;
@@ -25,6 +27,8 @@ export class DhanHqClient {
   public readonly scanner: Scanner;
   public readonly authentication: Authentication;
   public readonly superOrders: SuperOrders;
+  public readonly optionChain: OptionChain;
+  public readonly expiredOptionData: ExpiredOptionData;
 
   constructor(config: DhanConfig) {
     const baseURL =
@@ -52,5 +56,7 @@ export class DhanHqClient {
     this.scanner = new Scanner();
     this.authentication = new Authentication(this.axiosInstance);
     this.superOrders = new SuperOrders(this.axiosInstance);
+    this.optionChain = new OptionChain(this.axiosInstance);
+    this.expiredOptionData = new ExpiredOptionData(this.axiosInstance);
   }
 }

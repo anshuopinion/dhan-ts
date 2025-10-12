@@ -16,3 +16,5 @@ export * from "./modules/multi-connection-live-feed";
 export * from "./modules/market-depth-feed";
 export * from "./modules/authentication";
 export * from "./modules/super-orders";
+export * from "./modules/option-chain";
+export * from "./modules/expired-option-data";

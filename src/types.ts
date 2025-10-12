@@ -1211,3 +1211,133 @@ export interface SuperOrderDetail {
   filledQty: number;
   legDetails: SuperOrderLegDetail[];
 }
+
+// Option Chain Types
+export interface OptionGreeks {
+  delta: number;
+  theta: number;
+  gamma: number;
+  vega: number;
+}
+
+export interface OptionData {
+  greeks: OptionGreeks;
+  implied_volatility: number;
+  last_price: number;
+  oi: number;
+  previous_close_price: number;
+  previous_oi: number;
+  previous_volume: number;
+  top_ask_price: number;
+  top_ask_quantity: number;
+  top_bid_price: number;
+  top_bid_quantity: number;
+  volume: number;
+}
+
+export interface StrikeData {
+  ce?: OptionData;
+  pe?: OptionData;
+}
+
+export interface OptionChainData {
+  last_price: number;
+  oc: {
+    [strike: string]: StrikeData;
+  };
+}
+
+export interface OptionChainRequest {
+  UnderlyingScrip: number;
+  UnderlyingSeg: string;
+  Expiry: string;
+}
+
+export interface OptionChainResponse {
+  data: OptionChainData;
+}
+
+export interface ExpiryListRequest {
+  UnderlyingScrip: number;
+  UnderlyingSeg: string;
+}
+
+export interface ExpiryListResponse {
+  data: string[];
+  status: string;
+}
+
+// Expired Options Data Types
+export enum ExpiryFlag {
+  WEEK = "WEEK",
+  MONTH = "MONTH",
+}
+
+export enum StrikeType {
+  ATM = "ATM",
+  ATM_PLUS_1 = "ATM+1",
+  ATM_PLUS_2 = "ATM+2",
+  ATM_PLUS_3 = "ATM+3",
+  ATM_PLUS_4 = "ATM+4",
+  ATM_PLUS_5 = "ATM+5",
+  ATM_PLUS_6 = "ATM+6",
+  ATM_PLUS_7 = "ATM+7",
+  ATM_PLUS_8 = "ATM+8",
+  ATM_PLUS_9 = "ATM+9",
+  ATM_PLUS_10 = "ATM+10",
+  ATM_MINUS_1 = "ATM-1",
+  ATM_MINUS_2 = "ATM-2",
+  ATM_MINUS_3 = "ATM-3",
+  ATM_MINUS_4 = "ATM-4",
+  ATM_MINUS_5 = "ATM-5",
+  ATM_MINUS_6 = "ATM-6",
+  ATM_MINUS_7 = "ATM-7",
+  ATM_MINUS_8 = "ATM-8",
+  ATM_MINUS_9 = "ATM-9",
+  ATM_MINUS_10 = "ATM-10",
+}
+
+export type RequiredDataField =
+  | "open"
+  | "high"
+  | "low"
+  | "close"
+  | "iv"
+  | "volume"
+  | "strike"
+  | "oi"
+  | "spot";
+
+export interface ExpiredOptionDataRequest {
+  exchangeSegment: ExchangeSegmentText;
+  interval: string;
+  securityId: string;
+  instrument: InstrumentToken;
+  expiryFlag: ExpiryFlag;
+  expiryCode: number;
+  strike: StrikeType | string;
+  drvOptionType: DrvOptionType;
+  requiredData: RequiredDataField[];
+  fromDate: string;
+  toDate: string;
+}
+
+export interface ExpiredOptionDataValues {
+  iv?: number[];
+  oi?: number[];
+  strike?: number[];
+  spot?: number[];
+  open?: number[];
+  high?: number[];
+  low?: number[];
+  close?: number[];
+  volume?: number[];
+  timestamp: number[];
+}
+
+export interface ExpiredOptionDataResponse {
+  data: {
+    ce: ExpiredOptionDataValues | null;
+    pe: ExpiredOptionDataValues | null;
+  };
+}
