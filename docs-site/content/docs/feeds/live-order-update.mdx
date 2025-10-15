@@ -1,0 +1,397 @@
+---
+title: Live Order Updates
+description: Real-time order status updates via WebSocket
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Live Order Updates
+
+The Live Order Update feed provides real-time notifications whenever an order status changes. Get instant updates on order execution, modification, cancellation, and rejection.
+
+## Accessing Live Order Updates
+
+```typescript
+import { DhanFeed, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const feed = new DhanFeed(config);
+const orderFeed = feed.liveOrderUpdate;
+```
+
+## Methods
+
+### Connect
+
+Establish WebSocket connection for order updates.
+
+```typescript
+async connect(): Promise<void>
+```
+
+#### Example
+
+```typescript
+async function connectToOrderUpdates() {
+  try {
+    await orderFeed.connect();
+    console.log('Connected to order updates');
+  } catch (error) {
+    console.error('Connection error:', error);
+  }
+}
+```
+
+### Disconnect
+
+Close the connection.
+
+```typescript
+disconnect(): void
+```
+
+#### Example
+
+```typescript
+orderFeed.disconnect();
+console.log('Disconnected from order updates');
+```
+
+## Events
+
+### orderUpdate
+
+Emitted when an order status changes.
+
+```typescript
+orderFeed.on('orderUpdate', (update: LiveOrderUpdate) => {
+  const data = update.Data;
+
+  console.log('Order ID:', data.orderNo);
+  console.log('Symbol:', data.symbol);
+  console.log('Status:', data.status);
+  console.log('Transaction Type:', data.txnType);
+  console.log('Quantity:', data.quantity);
+  console.log('Traded Qty:', data.tradedQty);
+  console.log('Price:', data.price);
+  console.log('Avg Traded Price:', data.avgTradedPrice);
+  console.log('Remarks:', data.remarks);
+});
+```
+
+### authenticated
+
+Emitted when authentication succeeds.
+
+```typescript
+orderFeed.on('authenticated', () => {
+  console.log('Successfully authenticated for order updates');
+});
+```
+
+### authError
+
+Emitted when authentication fails.
+
+```typescript
+orderFeed.on('authError', (error: Error) => {
+  console.error('Authentication failed:', error);
+});
+```
+
+### error
+
+Emitted on connection or data errors.
+
+```typescript
+orderFeed.on('error', (error: Error) => {
+  console.error('Error:', error);
+});
+```
+
+### disconnected
+
+Emitted when connection is lost.
+
+```typescript
+orderFeed.on('disconnected', (data: { code: number; reason: string }) => {
+  console.log('Disconnected:', data.reason);
+  console.log('Code:', data.code);
+});
+```
+
+## TypeScript Types
+
+### LiveOrderUpdate
+
+```typescript
+interface LiveOrderUpdate {
+  Data: {
+    exchange: string;
+    segment: string;
+    source: string;
+    securityId: string;
+    clientId: string;
+    exchOrderNo: string;
+    orderNo: string;
+    product: string;
+    txnType: string;          // BUY or SELL
+    orderType: string;
+    validity: string;
+    discQuantity: number;
+    discQtyRem: number;
+    remainingQuantity: number;
+    quantity: number;
+    tradedQty: number;
+    price: number;
+    triggerPrice: number;
+    tradedPrice: number;
+    avgTradedPrice: number;
+    algoOrdNo: string;
+    offMktFlag: string;
+    orderDateTime: string;
+    exchOrderTime: string;
+    lastUpdatedTime: string;
+    remarks: string;
+    mktType: string;
+    reasonDescription: string;
+    legNo: number;
+    instrument: string;
+    symbol: string;
+    productName: string;
+    status: string;           // Order status
+    lotSize: number;
+    strikePrice: number;
+    expiryDate: string;
+    optType: string;
+    displayName: string;
+    isin: string;
+    series: string;
+    goodTillDaysDate: string;
+    refLtp: number;
+    tickSize: number;
+    algoId: string;
+    multiplier: number;
+  };
+  Type: string;               // "order_alert"
+}
+```
+
+## Complete Example
+
+```typescript
+import { DhanFeed, DhanHqClient, DhanEnv } from 'dhan-ts';
+
+async function trackOrderExecution() {
+  const config = {
+    accessToken: process.env.DHAN_ACCESS_TOKEN!,
+    clientId: process.env.DHAN_CLIENT_ID!,
+    env: DhanEnv.PROD,
+  };
+
+  const client = new DhanHqClient(config);
+  const feed = new DhanFeed(config);
+  const orderFeed = feed.liveOrderUpdate;
+
+  // Connect to order update feed
+  await orderFeed.connect();
+
+  // Track order execution
+  orderFeed.on('orderUpdate', (update) => {
+    const data = update.Data;
+
+    console.log(`\nOrder Update: ${data.orderNo}`);
+    console.log(`Symbol: ${data.symbol}`);
+    console.log(`Status: ${data.status}`);
+    console.log(`Traded: ${data.tradedQty}/${data.quantity}`);
+
+    if (data.status === 'TRADED') {
+      console.log(`✓ Order fully executed at ₹${data.avgTradedPrice}`);
+    } else if (data.status === 'REJECTED') {
+      console.log(`✗ Order rejected: ${data.reasonDescription}`);
+    } else if (data.status === 'PART_TRADED') {
+      console.log(`⚡ Partial fill: ${data.tradedQty} executed`);
+    }
+  });
+
+  // Place an order
+  const orderRequest = {
+    dhanClientId: config.clientId,
+    transactionType: 'BUY',
+    exchangeSegment: 'NSE_EQ',
+    productType: 'INTRADAY',
+    orderType: 'LIMIT',
+    validity: 'DAY',
+    securityId: '1333',
+    quantity: 1,
+    price: 1850.00,
+    afterMarketOrder: false,
+  };
+
+  const response = await client.orders.placeOrder(orderRequest);
+  console.log('Order placed:', response.orderId);
+
+  // Keep running to receive updates
+  process.on('SIGINT', () => {
+    orderFeed.disconnect();
+    process.exit();
+  });
+}
+
+trackOrderExecution();
+```
+
+## Common Patterns
+
+### Order Execution Tracker
+
+```typescript
+const orderTracking = new Map<string, {
+  placed: Date;
+  status: string;
+  fills: number[];
+}>();
+
+orderFeed.on('orderUpdate', (update) => {
+  const data = update.Data;
+  const orderId = data.orderNo;
+
+  if (!orderTracking.has(orderId)) {
+    orderTracking.set(orderId, {
+      placed: new Date(),
+      status: data.status,
+      fills: [],
+    });
+  }
+
+  const tracking = orderTracking.get(orderId)!;
+  tracking.status = data.status;
+
+  if (data.tradedQty > 0) {
+    tracking.fills.push(data.tradedPrice);
+  }
+
+  if (data.status === 'TRADED') {
+    const executionTime = Date.now() - tracking.placed.getTime();
+    console.log(`Order ${orderId} executed in ${executionTime}ms`);
+    console.log(`Avg Price: ₹${data.avgTradedPrice}`);
+  }
+});
+```
+
+### Auto-notification System
+
+```typescript
+async function sendNotification(message: string) {
+  // Send SMS/Email/Push notification
+  console.log('NOTIFICATION:', message);
+}
+
+orderFeed.on('orderUpdate', (update) => {
+  const data = update.Data;
+
+  switch (data.status) {
+    case 'TRADED':
+      sendNotification(
+        `Order executed: ${data.symbol} ${data.txnType} ${data.quantity} @ ₹${data.avgTradedPrice}`
+      );
+      break;
+
+    case 'REJECTED':
+      sendNotification(
+        `Order rejected: ${data.symbol} - ${data.reasonDescription}`
+      );
+      break;
+
+    case 'CANCELLED':
+      sendNotification(
+        `Order cancelled: ${data.symbol} ${data.orderNo}`
+      );
+      break;
+  }
+});
+```
+
+### Order Fill Rate Monitor
+
+```typescript
+const fillStats = {
+  total: 0,
+  filled: 0,
+  partial: 0,
+  rejected: 0,
+};
+
+orderFeed.on('orderUpdate', (update) => {
+  const data = update.Data;
+
+  if (data.status === 'TRADED') {
+    fillStats.total++;
+    fillStats.filled++;
+  } else if (data.status === 'PART_TRADED') {
+    fillStats.total++;
+    fillStats.partial++;
+  } else if (data.status === 'REJECTED') {
+    fillStats.total++;
+    fillStats.rejected++;
+  }
+
+  const fillRate = (fillStats.filled / fillStats.total) * 100;
+  console.log(`Fill Rate: ${fillRate.toFixed(2)}%`);
+});
+```
+
+## Features
+
+### Automatic Reconnection
+
+- Retries up to 10 times on connection loss
+- Exponential backoff with jitter
+- Automatic re-authentication after reconnection
+
+### Heartbeat Monitoring
+
+- Sends ping every 5 seconds
+- Detects dead connections (no pong for 40s)
+- Automatic reconnection on connection death
+
+### Event-driven Architecture
+
+- Non-blocking, event-based updates
+- Multiple listeners per event
+- Clean disconnect handling
+
+## Best Practices
+
+1. **Connect before placing orders** to avoid missing updates
+2. **Handle all event types** (authenticated, error, disconnected)
+3. **Implement retry logic** for critical operations
+4. **Log order updates** for audit trail
+5. **Monitor connection health** via heartbeat events
+6. **Clean disconnect** when shutting down
+7. **Handle partial fills** appropriately
+
+<Callout type="info">
+  Order updates are sent in real-time. The feed will notify you of every status change, including modifications, partial fills, and rejections.
+</Callout>
+
+## Order Status Flow
+
+```
+PENDING → TRANSIT → [TRIGGERED] → PART_TRADED → TRADED
+                                 ↓
+                              REJECTED
+                                 ↓
+                              CANCELLED
+```
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Place and manage orders
+- [Live Feed](/docs/feeds/live-feed) - Real-time market data
+- [Portfolio API](/docs/api-reference/portfolio) - View positions after execution

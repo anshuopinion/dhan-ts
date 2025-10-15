@@ -1,0 +1,330 @@
+---
+title: Mock Feeds
+description: Testing feeds without live WebSocket connections
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Mock Feeds
+
+Mock feeds allow you to test your trading applications without connecting to live WebSocket feeds. Perfect for development, testing, and simulation.
+
+## Available Mock Feeds
+
+- **MockLiveFeed** - Simulates live market data feed
+- **MockMultiConnectionLiveFeed** - Simulates multiple connections
+
+## Mock Live Feed
+
+### Accessing Mock Live Feed
+
+```typescript
+import { DhanFeed, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: 'test-token',
+  clientId: 'test-client',
+  env: DhanEnv.SANDBOX,
+};
+
+const feed = new DhanFeed(config);
+const mockFeed = feed.mockLiveFeed;
+```
+
+### Usage
+
+Mock feed has the same API as Live Feed:
+
+```typescript
+import { FeedRequestCode, ExchangeSegment } from 'dhan-ts';
+
+// Connect (doesn't actually connect)
+await mockFeed.connect();
+
+// Subscribe
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"],
+];
+
+mockFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+// Receive mock data
+mockFeed.on('data', (data) => {
+  console.log('Mock data:', data);
+});
+```
+
+### Features
+
+- **Simulated price movements** - Random price changes
+- **Realistic timing** - Updates at regular intervals
+- **All subscription types** supported
+- **Event emulation** - Emits same events as live feed
+- **No connection required** - Works offline
+
+### Customize Mock Data
+
+```typescript
+// Override default behavior
+mockFeed.setMockPrice('1333', 1850.50);
+mockFeed.setMockVolume('1333', 1000000);
+mockFeed.setPriceRange('1333', 1800, 1900);
+```
+
+## Mock Multi Connection Feed
+
+### Accessing Mock Multi Connection Feed
+
+```typescript
+const mockMultiFeed = feed.mockMultiConnectionLiveFeed;
+```
+
+### Usage
+
+Same API as Multi Connection Feed:
+
+```typescript
+// Connect multiple mock connections
+await mockMultiFeed.connect(3);
+
+// Subscribe to large watchlist
+const watchlist = [];
+for (let i = 1; i <= 3000; i++) {
+  watchlist.push([ExchangeSegment.NSE_EQ, i.toString()]);
+}
+
+mockMultiFeed.subscribe(watchlist, FeedRequestCode.SUBSCRIBE_TICKER);
+
+// Receive data from all mock connections
+mockMultiFeed.on('data', (data) => {
+  console.log('Mock multi-connection data:', data);
+});
+```
+
+## Testing Patterns
+
+### Test Order Execution Flow
+
+```typescript
+import { DhanHqClient, DhanFeed, DhanEnv } from 'dhan-ts';
+
+async function testOrderFlow() {
+  const config = {
+    accessToken: 'test',
+    clientId: 'test',
+    env: DhanEnv.SANDBOX,
+  };
+
+  const client = new DhanHqClient(config);
+  const feed = new DhanFeed(config);
+  const mockFeed = feed.mockLiveFeed;
+
+  // Connect mock feed
+  await mockFeed.connect();
+
+  // Subscribe to instrument
+  mockFeed.subscribe(
+    [[ExchangeSegment.NSE_EQ, "1333"]],
+    FeedRequestCode.SUBSCRIBE_TICKER
+  );
+
+  // Wait for price update
+  mockFeed.on('data', async (data) => {
+    if (data.type === 'ticker' && data.lastTradedPrice < 1850) {
+      // Place test order
+      const order = await client.orders.placeOrder({
+        dhanClientId: config.clientId,
+        transactionType: 'BUY',
+        exchangeSegment: 'NSE_EQ',
+        productType: 'CNC',
+        orderType: 'LIMIT',
+        validity: 'DAY',
+        securityId: '1333',
+        quantity: 1,
+        price: 1850.00,
+        afterMarketOrder: false,
+      });
+
+      console.log('Test order placed:', order.orderId);
+    }
+  });
+}
+```
+
+### Test Price Alerts
+
+```typescript
+async function testPriceAlerts() {
+  const mockFeed = feed.mockLiveFeed;
+  await mockFeed.connect();
+
+  const alerts = new Map([
+    ['1333', 1900],
+  ]);
+
+  mockFeed.subscribe(
+    [[ExchangeSegment.NSE_EQ, "1333"]],
+    FeedRequestCode.SUBSCRIBE_TICKER
+  );
+
+  mockFeed.on('data', (data) => {
+    if (data.type === 'ticker') {
+      const target = alerts.get(data.securityId.toString());
+
+      if (target && data.lastTradedPrice >= target) {
+        console.log('ALERT TRIGGERED:', data.securityId);
+        // Test notification system
+      }
+    }
+  });
+
+  // Simulate price reaching target
+  mockFeed.setMockPrice('1333', 1905);
+}
+```
+
+### Test Connection Resilience
+
+```typescript
+async function testReconnection() {
+  const mockFeed = feed.mockLiveFeed;
+
+  let reconnectCount = 0;
+
+  mockFeed.on('disconnected', () => {
+    console.log('Disconnected - testing reconnection logic');
+    reconnectCount++;
+  });
+
+  mockFeed.on('error', (error) => {
+    console.log('Error - testing error handling');
+  });
+
+  await mockFeed.connect();
+
+  // Simulate disconnection
+  mockFeed.simulateDisconnection();
+
+  // Verify reconnection logic
+  setTimeout(() => {
+    console.log(`Reconnections: ${reconnectCount}`);
+  }, 5000);
+}
+```
+
+### Test High-Frequency Updates
+
+```typescript
+async function testHighFrequency() {
+  const mockFeed = feed.mockLiveFeed;
+  await mockFeed.connect();
+
+  const updateCounts = new Map<string, number>();
+  const startTime = Date.now();
+
+  mockFeed.subscribe(
+    [[ExchangeSegment.NSE_EQ, "1333"]],
+    FeedRequestCode.SUBSCRIBE_TICKER
+  );
+
+  mockFeed.on('data', (data) => {
+    if (data.type === 'ticker') {
+      const count = updateCounts.get(data.securityId.toString()) || 0;
+      updateCounts.set(data.securityId.toString(), count + 1);
+    }
+  });
+
+  // Set high update frequency
+  mockFeed.setUpdateInterval(100); // 100ms
+
+  setTimeout(() => {
+    const elapsed = (Date.now() - startTime) / 1000;
+    const updates = updateCounts.get('1333') || 0;
+    console.log(`Received ${updates} updates in ${elapsed}s`);
+    console.log(`Rate: ${(updates / elapsed).toFixed(2)} updates/sec`);
+  }, 10000);
+}
+```
+
+## Mock Configuration
+
+### Set Update Frequency
+
+```typescript
+// Update every 1 second (default)
+mockFeed.setUpdateInterval(1000);
+
+// High frequency for testing
+mockFeed.setUpdateInterval(100);
+
+// Low frequency for slow testing
+mockFeed.setUpdateInterval(5000);
+```
+
+### Set Price Volatility
+
+```typescript
+// Low volatility (±0.1%)
+mockFeed.setVolatility('1333', 0.001);
+
+// High volatility (±2%)
+mockFeed.setVolatility('1333', 0.02);
+```
+
+### Simulate Market Events
+
+```typescript
+// Simulate circuit limit hit
+mockFeed.simulateCircuitLimit('1333', 'upper');
+
+// Simulate market close
+mockFeed.simulateMarketClose();
+
+// Simulate connection issues
+mockFeed.simulateDisconnection();
+mockFeed.simulateSlowConnection();
+```
+
+## Benefits of Mock Feeds
+
+1. **Offline Development** - No internet required
+2. **Predictable Testing** - Control price movements
+3. **No Data Costs** - No subscription needed
+4. **Fast Iteration** - Quick testing cycles
+5. **Reproducible Tests** - Same behavior every time
+6. **Stress Testing** - Test edge cases easily
+7. **CI/CD Integration** - Automated testing
+
+<Callout type="info">
+  Mock feeds are perfect for development and testing. Switch to real feeds for production deployment.
+</Callout>
+
+## Switching to Live Feeds
+
+Replace mock feeds with live feeds for production:
+
+```typescript
+// Development
+const feed = dhanFeed.mockLiveFeed;
+
+// Production
+const feed = dhanFeed.liveFeed;
+
+// Rest of code remains the same!
+```
+
+## Best Practices
+
+1. **Use mocks for unit tests** - Fast, reliable testing
+2. **Test with live feeds before deployment** - Catch integration issues
+3. **Simulate realistic scenarios** - Market hours, volatility
+4. **Test error handling** - Disconnections, bad data
+5. **Benchmark performance** - High-frequency scenarios
+6. **Validate logic** - Price alerts, order triggers
+7. **Document test cases** - Maintain test coverage
+
+## Related APIs
+
+- [Live Feed](/docs/feeds/live-feed) - Production market data
+- [Multi Connection Feed](/docs/feeds/multi-connection-feed) - Multiple connections
+- [Orders API](/docs/api-reference/orders) - Test order placement

@@ -1,0 +1,286 @@
+---
+title: Market Depth Feed
+description: Dedicated feed for 20 and 200 level market depth
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Market Depth Feed
+
+The Market Depth Feed provides high-frequency market depth data with up to 200 price levels. Available in two variants: 20-level and 200-level depth.
+
+## Accessing Market Depth Feeds
+
+```typescript
+import { DhanFeed, DhanEnv, ExchangeSegment } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const feed = new DhanFeed(config);
+
+// 20-level market depth
+const depth20Feed = feed.marketDepthFeed20;
+
+// 200-level market depth
+const depth200Feed = feed.marketDepthFeed200;
+```
+
+## Methods
+
+### Connect
+
+Establish WebSocket connection.
+
+```typescript
+async connect(): Promise<void>
+```
+
+### Subscribe
+
+Subscribe to market depth for instruments.
+
+```typescript
+subscribe(instruments: Instrument[]): void
+```
+
+#### Example
+
+```typescript
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"], // Reliance
+];
+
+await depth20Feed.connect();
+depth20Feed.subscribe(instruments);
+
+depth20Feed.on('data', (data) => {
+  console.log('Bid levels:', data.bids.length);
+  console.log('Ask levels:', data.asks.length);
+
+  // Display top 5 levels
+  data.bids.slice(0, 5).forEach((level, i) => {
+    console.log(`Bid ${i + 1}: ${level.quantity} @ ₹${level.price} (${level.orders} orders)`);
+  });
+
+  data.asks.slice(0, 5).forEach((level, i) => {
+    console.log(`Ask ${i + 1}: ${level.quantity} @ ₹${level.price} (${level.orders} orders)`);
+  });
+});
+```
+
+### Unsubscribe
+
+Unsubscribe from instruments.
+
+```typescript
+unsubscribe(instruments: Instrument[]): void
+```
+
+### Close
+
+Close the connection.
+
+```typescript
+close(): void
+```
+
+## Events
+
+### data
+
+Emitted when market depth data is received.
+
+```typescript
+depth20Feed.on('data', (data: MarketDepthData) => {
+  console.log('Exchange:', data.exchangeSegment);
+  console.log('Security ID:', data.securityId);
+  console.log('Bids:', data.bids);
+  console.log('Asks:', data.asks);
+});
+```
+
+### error
+
+Emitted on errors.
+
+```typescript
+depth20Feed.on('error', (error: Error) => {
+  console.error('Error:', error);
+});
+```
+
+### disconnected
+
+Emitted when connection is lost.
+
+```typescript
+depth20Feed.on('disconnected', (data: DisconnectionResponse) => {
+  console.log('Disconnected:', data.reason);
+});
+```
+
+## TypeScript Types
+
+### MarketDepthData
+
+```typescript
+interface MarketDepthData {
+  exchangeSegment: number;
+  securityId: number;
+  bids: DepthLevel[];
+  asks: DepthLevel[];
+}
+
+interface DepthLevel {
+  price: number;
+  quantity: number;
+  orders: number;
+}
+```
+
+## Use Cases
+
+### Order Book Visualization
+
+```typescript
+function displayOrderBook(data: MarketDepthData) {
+  console.clear();
+  console.log('=== ORDER BOOK ===');
+  console.log(`Security: ${data.securityId}\n`);
+
+  console.log('ASKS (Sell Orders)');
+  console.log('Price\t\tQty\tOrders');
+  data.asks.reverse().slice(0, 10).forEach(level => {
+    console.log(`${level.price}\t${level.quantity}\t${level.orders}`);
+  });
+
+  console.log('\n--- SPREAD ---\n');
+
+  console.log('BIDS (Buy Orders)');
+  console.log('Price\t\tQty\tOrders');
+  data.bids.slice(0, 10).forEach(level => {
+    console.log(`${level.price}\t${level.quantity}\t${level.orders}`);
+  });
+}
+
+depth20Feed.on('data', displayOrderBook);
+```
+
+### Liquidity Analysis
+
+```typescript
+depth20Feed.on('data', (data) => {
+  const totalBidQty = data.bids.reduce((sum, level) => sum + level.quantity, 0);
+  const totalAskQty = data.asks.reduce((sum, level) => sum + level.quantity, 0);
+
+  const bidValue = data.bids.reduce((sum, level) =>
+    sum + (level.quantity * level.price), 0
+  );
+  const askValue = data.asks.reduce((sum, level) =>
+    sum + (level.quantity * level.price), 0
+  );
+
+  console.log(`Total Bid Qty: ${totalBidQty}`);
+  console.log(`Total Ask Qty: ${totalAskQty}`);
+  console.log(`Bid Value: ₹${bidValue.toFixed(2)}`);
+  console.log(`Ask Value: ₹${askValue.toFixed(2)}`);
+  console.log(`Buy Pressure: ${((totalBidQty / (totalBidQty + totalAskQty)) * 100).toFixed(2)}%`);
+});
+```
+
+### Spread Monitoring
+
+```typescript
+depth20Feed.on('data', (data) => {
+  const bestBid = data.bids[0];
+  const bestAsk = data.asks[0];
+
+  if (bestBid && bestAsk) {
+    const spread = bestAsk.price - bestBid.price;
+    const spreadBps = (spread / bestBid.price) * 10000;
+
+    console.log(`Spread: ₹${spread} (${spreadBps.toFixed(2)} bps)`);
+
+    if (spreadBps > 50) {
+      console.log('⚠️ Wide spread detected - low liquidity');
+    }
+  }
+});
+```
+
+### VWAP Calculation
+
+```typescript
+function calculateVWAP(levels: DepthLevel[], side: 'bid' | 'ask'): number {
+  let totalValue = 0;
+  let totalQty = 0;
+
+  levels.forEach(level => {
+    totalValue += level.price * level.quantity;
+    totalQty += level.quantity;
+  });
+
+  return totalQty > 0 ? totalValue / totalQty : 0;
+}
+
+depth20Feed.on('data', (data) => {
+  const bidVWAP = calculateVWAP(data.bids, 'bid');
+  const askVWAP = calculateVWAP(data.asks, 'ask');
+
+  console.log(`Bid VWAP: ₹${bidVWAP.toFixed(2)}`);
+  console.log(`Ask VWAP: ₹${askVWAP.toFixed(2)}`);
+});
+```
+
+### Imbalance Detection
+
+```typescript
+depth20Feed.on('data', (data) => {
+  const bidQty = data.bids.reduce((sum, l) => sum + l.quantity, 0);
+  const askQty = data.asks.reduce((sum, l) => sum + l.quantity, 0);
+
+  const imbalance = (bidQty - askQty) / (bidQty + askQty);
+
+  if (imbalance > 0.3) {
+    console.log('🔵 Strong buying pressure');
+  } else if (imbalance < -0.3) {
+    console.log('🔴 Strong selling pressure');
+  } else {
+    console.log('⚪ Balanced order book');
+  }
+});
+```
+
+## 20-Level vs 200-Level
+
+| Feature | 20-Level | 200-Level |
+|---------|----------|-----------|
+| Price levels | 20 bids + 20 asks | 200 bids + 200 asks |
+| Use case | Normal trading | Algorithmic trading, HFT |
+| Update frequency | High | Very high |
+| Data volume | Moderate | High |
+| Cost | Standard | Premium |
+
+<Callout type="warn">
+  200-level market depth requires a premium data subscription and is primarily used for algorithmic trading strategies.
+</Callout>
+
+## Best Practices
+
+1. **Choose appropriate depth level** based on strategy needs
+2. **Monitor data frequency** to avoid overwhelming your system
+3. **Calculate order book metrics** for trading decisions
+4. **Track imbalance** for short-term price direction
+5. **Use for better order placement** to minimize slippage
+6. **Detect iceberg orders** via quantity patterns
+7. **Monitor spread changes** for liquidity assessment
+
+## Related APIs
+
+- [Live Feed](/docs/feeds/live-feed) - General market data
+- [Market Data API](/docs/api-reference/market-data) - Snapshot market depth
+- [Orders API](/docs/api-reference/orders) - Place orders based on depth

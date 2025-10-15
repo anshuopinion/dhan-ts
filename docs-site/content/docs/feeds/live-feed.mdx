@@ -1,0 +1,507 @@
+---
+title: Live Feed
+description: Real-time market data via WebSocket
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Live Feed
+
+The Live Feed provides real-time market data through WebSocket connection. Subscribe to ticker, quote, OI, and full market data for instruments.
+
+## Accessing the Live Feed
+
+```typescript
+import { DhanFeed, DhanEnv, FeedRequestCode } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const feed = new DhanFeed(config);
+const liveFeed = feed.liveFeed;
+```
+
+## Methods
+
+### Connect
+
+Establish WebSocket connection.
+
+```typescript
+async connect(): Promise<void>
+```
+
+#### Example
+
+```typescript
+async function connectToFeed() {
+  try {
+    await liveFeed.connect();
+    console.log('Connected to live feed');
+  } catch (error) {
+    console.error('Connection error:', error);
+  }
+}
+```
+
+### Subscribe
+
+Subscribe to market data for instruments.
+
+```typescript
+subscribe(instruments: Instrument[], requestCode: FeedRequestCode): void
+```
+
+#### Subscription Types
+
+<Tabs items={['Ticker', 'Quote', 'Full Data', 'Market Depth']}>
+<Tab value="Ticker">
+
+```typescript
+// Subscribe to ticker (LTP + timestamp only)
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"], // Reliance
+  [ExchangeSegment.NSE_EQ, "13"],   // Nifty 50
+];
+
+liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'ticker') {
+    console.log('LTP:', data.lastTradedPrice);
+    console.log('Time:', data.lastTradedTime);
+  }
+});
+```
+
+</Tab>
+<Tab value="Quote">
+
+```typescript
+// Subscribe to quote (OHLC + volume + bid/ask quantity)
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"],
+];
+
+liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_QUOTE);
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'quote') {
+    console.log('LTP:', data.lastTradedPrice);
+    console.log('Open:', data.openPrice);
+    console.log('High:', data.highPrice);
+    console.log('Low:', data.lowPrice);
+    console.log('Close:', data.closePrice);
+    console.log('Volume:', data.volumeTraded);
+    console.log('Buy Qty:', data.totalBuyQuantity);
+    console.log('Sell Qty:', data.totalSellQuantity);
+  }
+});
+```
+
+</Tab>
+<Tab value="Full Data">
+
+```typescript
+// Subscribe to full market data (everything + market depth)
+const instruments = [
+  [ExchangeSegment.NSE_FNO, "50699"], // Nifty futures
+];
+
+liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_FULL);
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'full') {
+    console.log('LTP:', data.lastTradedPrice);
+    console.log('OI:', data.openInterest);
+    console.log('OI Day High:', data.openInterestDayHigh);
+    console.log('Market Depth:', data.marketDepth);
+
+    // Buy side depth
+    data.marketDepth.buy.forEach((level, i) => {
+      console.log(`Buy ${i + 1}: Qty ${level.quantity} @ ₹${level.price}`);
+    });
+
+    // Sell side depth
+    data.marketDepth.sell.forEach((level, i) => {
+      console.log(`Sell ${i + 1}: Qty ${level.quantity} @ ₹${level.price}`);
+    });
+  }
+});
+```
+
+</Tab>
+<Tab value="Market Depth">
+
+```typescript
+// Subscribe to market depth only
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"],
+];
+
+liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_MARKET_DEPTH);
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'full') {
+    const depth = data.marketDepth;
+    console.log('5-level market depth received');
+  }
+});
+```
+
+</Tab>
+</Tabs>
+
+### Unsubscribe
+
+Unsubscribe from market data.
+
+```typescript
+unsubscribe(instruments: Instrument[]): void
+```
+
+#### Example
+
+```typescript
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"],
+];
+
+liveFeed.unsubscribe(instruments);
+console.log('Unsubscribed from instruments');
+```
+
+### Close
+
+Close the WebSocket connection.
+
+```typescript
+close(): void
+```
+
+#### Example
+
+```typescript
+liveFeed.close();
+console.log('Connection closed');
+```
+
+## Events
+
+### data
+
+Emitted when market data is received.
+
+```typescript
+liveFeed.on('data', (data: LiveFeedResponse) => {
+  switch (data.type) {
+    case 'ticker':
+      console.log('Ticker data:', data);
+      break;
+    case 'quote':
+      console.log('Quote data:', data);
+      break;
+    case 'full':
+      console.log('Full market data:', data);
+      break;
+    case 'oi_data':
+      console.log('OI data:', data);
+      break;
+    case 'prev_close':
+      console.log('Previous close:', data);
+      break;
+    case 'market_status':
+      console.log('Market status:', data.status);
+      break;
+  }
+});
+```
+
+### error
+
+Emitted when an error occurs.
+
+```typescript
+liveFeed.on('error', (error: Error) => {
+  console.error('Feed error:', error);
+});
+```
+
+### disconnected
+
+Emitted when connection is lost.
+
+```typescript
+liveFeed.on('disconnected', (data: DisconnectionResponse) => {
+  console.log('Disconnected:', data.reason);
+  console.log('Error code:', data.errorCode);
+});
+```
+
+### close
+
+Emitted when connection is closed.
+
+```typescript
+liveFeed.on('close', (data: { code: number; reason: string }) => {
+  console.log('Connection closed:', data.reason);
+});
+```
+
+## TypeScript Types
+
+### FeedRequestCode Enum
+
+```typescript
+enum FeedRequestCode {
+  CONNECT = 11,
+  DISCONNECT = 12,
+  SUBSCRIBE_TICKER = 15,
+  UNSUBSCRIBE_TICKER = 16,
+  SUBSCRIBE_QUOTE = 17,
+  UNSUBSCRIBE_QUOTE = 18,
+  SUBSCRIBE_FULL = 21,
+  UNSUBSCRIBE_FULL = 22,
+  SUBSCRIBE_MARKET_DEPTH = 23,
+  UNSUBSCRIBE_MARKET_DEPTH = 24,
+}
+```
+
+### Instrument Type
+
+```typescript
+type Instrument = [ExchangeSegment, string];
+```
+
+### Response Types
+
+```typescript
+interface TickerResponse {
+  type: "ticker";
+  exchangeSegment: number;
+  securityId: number;
+  lastTradedPrice: number;
+  lastTradedTime: number;
+}
+
+interface QuoteResponse {
+  type: "quote";
+  exchangeSegment: number;
+  securityId: number;
+  lastTradedPrice: number;
+  lastTradedQuantity: number;
+  lastTradedTime: number;
+  averageTradePrice: number;
+  volumeTraded: number;
+  totalBuyQuantity: number;
+  totalSellQuantity: number;
+  openPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  closePrice: number;
+}
+
+interface FullMarketDataResponse {
+  type: "full";
+  exchangeSegment: number;
+  securityId: number;
+  lastTradedPrice: number;
+  lastTradedQuantity: number;
+  lastTradedTime: number;
+  averageTradePrice: number;
+  volumeTraded: number;
+  totalBuyQuantity: number;
+  totalSellQuantity: number;
+  openInterest: number;
+  openInterestDayHigh: number;
+  openInterestDayLow: number;
+  openPrice: number;
+  closePrice: number;
+  highPrice: number;
+  lowPrice: number;
+  marketDepth: MarketDepthResponse;
+}
+
+interface MarketDepthResponse {
+  buy: DepthLevel[];
+  sell: DepthLevel[];
+}
+
+interface DepthLevel {
+  quantity: number;
+  orders: number;
+  price: number;
+}
+```
+
+## Complete Example
+
+```typescript
+import {
+  DhanFeed,
+  DhanEnv,
+  FeedRequestCode,
+  ExchangeSegment,
+} from 'dhan-ts';
+
+async function startLiveFeed() {
+  const config = {
+    accessToken: process.env.DHAN_ACCESS_TOKEN!,
+    clientId: process.env.DHAN_CLIENT_ID!,
+    env: DhanEnv.PROD,
+  };
+
+  const feed = new DhanFeed(config);
+  const liveFeed = feed.liveFeed;
+
+  // Set up event listeners
+  liveFeed.on('data', (data) => {
+    if (data.type === 'ticker') {
+      console.log(`${data.securityId}: ₹${data.lastTradedPrice}`);
+    }
+  });
+
+  liveFeed.on('error', (error) => {
+    console.error('Error:', error);
+  });
+
+  liveFeed.on('disconnected', (data) => {
+    console.log('Disconnected:', data.reason);
+  });
+
+  // Connect
+  await liveFeed.connect();
+
+  // Subscribe to instruments
+  const instruments = [
+    [ExchangeSegment.NSE_EQ, "1333"], // Reliance
+    [ExchangeSegment.NSE_EQ, "13"],   // Nifty 50
+  ];
+
+  liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+  // Keep alive
+  process.on('SIGINT', () => {
+    console.log('Closing connection...');
+    liveFeed.close();
+    process.exit();
+  });
+}
+
+startLiveFeed();
+```
+
+## Features
+
+### Automatic Reconnection
+
+The Live Feed automatically reconnects on connection loss with exponential backoff:
+- Retries up to 10 times
+- Exponential backoff from 2s to 60s
+- Automatic resubscription after reconnection
+
+### Heartbeat / Ping
+
+Automatic ping-pong to keep connection alive:
+- Sends ping every 30 seconds
+- Monitors connection health
+
+### Subscription Management
+
+- Subscribe to multiple instruments simultaneously
+- Subscriptions are preserved across reconnections
+- Easy subscribe/unsubscribe management
+
+## Common Patterns
+
+### Track Multiple Stocks
+
+```typescript
+const watchlist = [
+  [ExchangeSegment.NSE_EQ, "1333"], // Reliance
+  [ExchangeSegment.NSE_EQ, "11536"], // TCS
+  [ExchangeSegment.NSE_EQ, "1922"], // HDFC Bank
+];
+
+await liveFeed.connect();
+liveFeed.subscribe(watchlist, FeedRequestCode.SUBSCRIBE_QUOTE);
+
+const prices = new Map<string, number>();
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'quote') {
+    prices.set(data.securityId.toString(), data.lastTradedPrice);
+    console.log('Current prices:', Object.fromEntries(prices));
+  }
+});
+```
+
+### Price Alerts
+
+```typescript
+const priceAlerts = new Map<string, number>([
+  ['1333', 1900], // Reliance target
+  ['13', 22000],  // Nifty target
+]);
+
+liveFeed.on('data', (data) => {
+  if (data.type === 'ticker') {
+    const target = priceAlerts.get(data.securityId.toString());
+
+    if (target && data.lastTradedPrice >= target) {
+      console.log(`ALERT: ${data.securityId} reached target ₹${target}`);
+      // Send notification
+    }
+  }
+});
+```
+
+### Calculate Spread
+
+```typescript
+liveFeed.on('data', (data) => {
+  if (data.type === 'full') {
+    const bestBid = data.marketDepth.buy[0]?.price || 0;
+    const bestAsk = data.marketDepth.sell[0]?.price || 0;
+    const spread = bestAsk - bestBid;
+    const spreadPercent = (spread / bestBid) * 100;
+
+    console.log(`Spread: ₹${spread} (${spreadPercent.toFixed(2)}%)`);
+  }
+});
+```
+
+## Best Practices
+
+1. **Always handle errors** and reconnection events
+2. **Subscribe after connection** is established
+3. **Use appropriate subscription type** based on data needs
+4. **Limit subscriptions** to avoid rate limits (max 1000 instruments)
+5. **Close connection** when done to free resources
+6. **Handle disconnections** gracefully
+7. **Monitor data latency** for real-time applications
+
+<Callout type="warn">
+  Live Feed requires an active data subscription. Check your Dhan data plan before using.
+</Callout>
+
+## Error Codes
+
+| Code | Meaning |
+|------|---------|
+| 805 | Connection limit exceeded |
+| 806 | Data APIs not subscribed |
+| 807 | Access token expired |
+| 808 | Authentication failed |
+| 809 | Invalid access token |
+
+## Related APIs
+
+- [Market Data API](/docs/api-reference/market-data) - Historical and snapshot data
+- [Market Depth Feed](/docs/feeds/market-depth-feed) - Dedicated market depth feed
+- [Multi Connection Feed](/docs/feeds/multi-connection-feed) - Multiple concurrent connections
+- [Mock Live Feed](/docs/feeds/mock-feeds) - Testing without live connection

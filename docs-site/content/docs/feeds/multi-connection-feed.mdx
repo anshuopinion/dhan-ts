@@ -1,0 +1,273 @@
+---
+title: Multi Connection Feed
+description: Manage multiple concurrent WebSocket connections
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Multi Connection Feed
+
+The Multi Connection Feed allows you to create multiple WebSocket connections to subscribe to more instruments than a single connection limit allows.
+
+## Accessing Multi Connection Feed
+
+```typescript
+import { DhanFeed, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const feed = new DhanFeed(config);
+const multiConnectionFeed = feed.multiConnectionLiveFeed;
+```
+
+## Why Multi Connection?
+
+Single WebSocket connections have instrument limits. Multi Connection Feed:
+- Automatically manages multiple connections
+- Distributes instruments across connections
+- Handles reconnection for all connections
+- Provides unified data stream
+
+## Methods
+
+### Connect
+
+Create and connect multiple WebSocket connections.
+
+```typescript
+async connect(numberOfConnections: number): Promise<void>
+```
+
+#### Example
+
+```typescript
+// Create 3 concurrent connections
+await multiConnectionFeed.connect(3);
+console.log('3 connections established');
+```
+
+### Subscribe
+
+Subscribe to instruments (automatically distributed across connections).
+
+```typescript
+subscribe(instruments: Instrument[], requestCode: FeedRequestCode): void
+```
+
+#### Example
+
+```typescript
+import { FeedRequestCode, ExchangeSegment } from 'dhan-ts';
+
+// Subscribe to many instruments
+const watchlist: Instrument[] = [];
+
+for (let i = 1; i <= 3000; i++) {
+  watchlist.push([ExchangeSegment.NSE_EQ, i.toString()]);
+}
+
+await multiConnectionFeed.connect(3);
+multiConnectionFeed.subscribe(watchlist, FeedRequestCode.SUBSCRIBE_TICKER);
+
+// Data from all connections unified
+multiConnectionFeed.on('data', (data) => {
+  console.log('Update from:', data.securityId);
+});
+```
+
+### Unsubscribe
+
+Unsubscribe from instruments.
+
+```typescript
+unsubscribe(instruments: Instrument[]): void
+```
+
+### Close All
+
+Close all connections.
+
+```typescript
+closeAll(): void
+```
+
+#### Example
+
+```typescript
+multiConnectionFeed.closeAll();
+console.log('All connections closed');
+```
+
+## Events
+
+### data
+
+Unified data stream from all connections.
+
+```typescript
+multiConnectionFeed.on('data', (data: LiveFeedResponse) => {
+  console.log('Data received:', data);
+});
+```
+
+### error
+
+Errors from any connection.
+
+```typescript
+multiConnectionFeed.on('error', (error: Error) => {
+  console.error('Connection error:', error);
+});
+```
+
+### disconnected
+
+Disconnection events.
+
+```typescript
+multiConnectionFeed.on('disconnected', (data: DisconnectionResponse) => {
+  console.log('Connection lost:', data.reason);
+});
+```
+
+### connectionStatus
+
+Status updates for individual connections.
+
+```typescript
+multiConnectionFeed.on('connectionStatus', (status) => {
+  console.log(`Connection ${status.id}: ${status.state}`);
+});
+```
+
+## Complete Example
+
+```typescript
+import {
+  DhanFeed,
+  DhanEnv,
+  FeedRequestCode,
+  ExchangeSegment,
+} from 'dhan-ts';
+
+async function trackLargeWatchlist() {
+  const config = {
+    accessToken: process.env.DHAN_ACCESS_TOKEN!,
+    clientId: process.env.DHAN_CLIENT_ID!,
+    env: DhanEnv.PROD,
+  };
+
+  const feed = new DhanFeed(config);
+  const multiConnectionFeed = feed.multiConnectionLiveFeed;
+
+  // Track price changes
+  const prices = new Map<string, number>();
+
+  multiConnectionFeed.on('data', (data) => {
+    if (data.type === 'ticker') {
+      const prev = prices.get(data.securityId.toString());
+      prices.set(data.securityId.toString(), data.lastTradedPrice);
+
+      if (prev) {
+        const change = ((data.lastTradedPrice - prev) / prev) * 100;
+        if (Math.abs(change) > 1) {
+          console.log(`Alert: ${data.securityId} moved ${change.toFixed(2)}%`);
+        }
+      }
+    }
+  });
+
+  multiConnectionFeed.on('error', (error) => {
+    console.error('Error:', error);
+  });
+
+  // Connect with 5 connections
+  await multiConnectionFeed.connect(5);
+  console.log('5 connections established');
+
+  // Build large watchlist
+  const watchlist: Instrument[] = [];
+  for (let i = 1; i <= 5000; i++) {
+    watchlist.push([ExchangeSegment.NSE_EQ, i.toString()]);
+  }
+
+  // Subscribe - automatically distributed across connections
+  multiConnectionFeed.subscribe(
+    watchlist,
+    FeedRequestCode.SUBSCRIBE_TICKER
+  );
+
+  console.log(`Subscribed to ${watchlist.length} instruments`);
+}
+
+trackLargeWatchlist();
+```
+
+## Connection Distribution
+
+Instruments are automatically distributed across connections:
+
+```
+Connection 1: Instruments 0-999
+Connection 2: Instruments 1000-1999
+Connection 3: Instruments 2000-2999
+...
+```
+
+## Features
+
+### Automatic Load Balancing
+
+- Evenly distributes instruments across connections
+- Optimal performance for each connection
+- No manual management required
+
+### Unified Data Stream
+
+- Single event listener for all data
+- No need to track which connection provides what
+- Simplified application logic
+
+### Connection Resilience
+
+- Individual connection failures don't affect others
+- Automatic reconnection per connection
+- Continues receiving data from healthy connections
+
+### Scalability
+
+- Subscribe to 10,000+ instruments easily
+- Add more connections as needed
+- Horizontal scaling of data ingestion
+
+## Best Practices
+
+1. **Choose appropriate connection count** based on instrument count
+2. **Monitor connection health** via events
+3. **Handle errors per connection** gracefully
+4. **Use for large watchlists** (> 1000 instruments)
+5. **Test connection limits** in sandbox first
+6. **Close connections** when done
+7. **Balance connection count** vs system resources
+
+<Callout type="info">
+  Each connection counts towards your concurrent connection limit. Check your Dhan plan for maximum allowed connections.
+</Callout>
+
+## Connection Limits
+
+| Plan | Max Connections | Instruments/Connection | Total Instruments |
+|------|----------------|------------------------|-------------------|
+| Basic | 1 | 1000 | 1000 |
+| Standard | 3 | 1000 | 3000 |
+| Premium | 10 | 1000 | 10000 |
+
+## Related APIs
+
+- [Live Feed](/docs/feeds/live-feed) - Single connection feed
+- [Mock Multi Connection Feed](/docs/feeds/mock-feeds) - Testing multiple connections
+- [Market Data API](/docs/api-reference/market-data) - Snapshot data
