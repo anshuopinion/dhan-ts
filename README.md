@@ -36,7 +36,7 @@ npm install dhan-ts
 ## 🚀 Quick Start
 
 ```typescript
-import { DhanHqClient, DhanFeed, DhanEnv } from 'dhan-ts';
+import { DhanHqClient, DhanFeed, DhanEnv } from "dhan-ts";
 
 // Initialize REST API client
 const client = new DhanHqClient({
@@ -47,19 +47,19 @@ const client = new DhanHqClient({
 
 // Get your fund limits
 const funds = await client.funds.getFundLimit();
-console.log('Available Balance:', funds.availabelBalance);
+console.log("Available Balance:", funds.availabelBalance);
 
 // Place an order
 const order = await client.orders.placeOrder({
   dhanClientId: process.env.DHAN_CLIENT_ID!,
-  transactionType: 'BUY',
-  exchangeSegment: 'NSE_EQ',
-  productType: 'CNC',
-  orderType: 'LIMIT',
-  validity: 'DAY',
-  securityId: '1333',
+  transactionType: "BUY",
+  exchangeSegment: "NSE_EQ",
+  productType: "CNC",
+  orderType: "LIMIT",
+  validity: "DAY",
+  securityId: "1333",
   quantity: 1,
-  price: 1850.00,
+  price: 1850.0,
   afterMarketOrder: false,
 });
 
@@ -74,11 +74,11 @@ const feed = new DhanFeed({
 await feed.liveFeed.connect();
 
 // Subscribe to instruments
-feed.liveFeed.subscribe([[1, "1333"]], 'SUBSCRIBE_TICKER');
+feed.liveFeed.subscribe([[1, "1333"]], "SUBSCRIBE_TICKER");
 
 // Listen for updates
-feed.liveFeed.on('data', (data) => {
-  console.log('Price:', data.lastTradedPrice);
+feed.liveFeed.on("data", (data) => {
+  console.log("Price:", data.lastTradedPrice);
 });
 ```
 
@@ -101,9 +101,11 @@ For complete documentation, visit **[dhan-ts.vercel.app](https://dhan-ts.vercel.
 ## 🎯 API Coverage
 
 ### REST APIs (15 Modules)
+
 Orders • Portfolio • Funds • Market Data • Super Orders • Forever Orders • Option Chain • Expired Options • Authentication • E-DIS • Statements • Traders Control • Scanner
 
 ### WebSocket Feeds (6 Types)
+
 Live Feed • Order Updates • Market Depth (20 & 200) • Multi Connection • Mock Feeds
 
 ## 🤝 Contributing
@@ -126,7 +128,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [**npm Package**](https://www.npmjs.com/package/dhan-ts)
 - [**GitHub Repository**](https://github.com/anshuopinion/dhan-ts)
 - [**Report Issues**](https://github.com/anshuopinion/dhan-ts/issues)
-- [**Official Dhan API**](https://dhanhq.co/docs)
+- [**Official Dhan API**](https://dhanhq.co/docs/v2/)
 
 ---
 
