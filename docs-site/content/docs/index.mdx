@@ -1,0 +1,139 @@
+---
+title: dhan-ts Documentation
+description: Complete TypeScript client for Dhan API v2 - Trading, Market Data, and WebSocket Feeds
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Terminal, Cpu, Database, Zap } from 'lucide-react';
+
+# dhan-ts
+
+A comprehensive TypeScript client library for Dhan's trading API v2, providing type-safe access to trading operations, market data, and real-time feeds.
+
+## Features
+
+<Cards>
+  <Card icon={<Terminal />} title="Fully Typed" href="/docs/getting-started">
+    Complete TypeScript support with full type definitions for all API endpoints
+  </Card>
+
+  <Card icon={<Zap />} title="WebSocket Feeds" href="/docs/api-reference/feeds">
+    Real-time market data, order updates, and market depth feeds
+  </Card>
+
+  <Card icon={<Database />} title="Comprehensive API" href="/docs/api-reference">
+    Access to Orders, Portfolio, Market Data, Funds, and more
+  </Card>
+
+  <Card icon={<Cpu />} title="Production Ready" href="/docs/getting-started">
+    Battle-tested with automatic reconnection and error handling
+  </Card>
+</Cards>
+
+## Quick Start
+
+Install the package:
+
+```bash npm2yarn
+npm install dhan-ts
+```
+
+Initialize the client:
+
+```typescript
+import { DhanHqClient, DhanFeed, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: 'your-access-token',
+  clientId: 'your-client-id',
+  env: DhanEnv.PROD,
+};
+
+const dhanClient = new DhanHqClient(config);
+const dhanFeed = new DhanFeed(config);
+```
+
+## Main Components
+
+### DhanHqClient - REST API
+
+Access all REST API endpoints through organized modules:
+
+```typescript
+// Orders
+await dhanClient.orders.getOrders();
+await dhanClient.orders.placeOrder(orderRequest);
+
+// Portfolio
+await dhanClient.portfolio.getHoldings();
+await dhanClient.portfolio.getPositions();
+
+// Market Data
+await dhanClient.marketData.getLTP(request);
+await dhanClient.marketData.getProcessedCandleData(request);
+
+// Funds
+await dhanClient.funds.getFundLimit();
+```
+
+### DhanFeed - WebSocket Feeds
+
+Real-time market data and order updates:
+
+```typescript
+// Live market feed
+const feed = dhanFeed.liveFeed;
+await feed.connect();
+feed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+feed.on('data', (data) => {
+  console.log('Market data:', data);
+});
+
+// Live order updates
+const orderFeed = dhanFeed.liveOrderUpdate;
+await orderFeed.connect();
+```
+
+## Available Modules
+
+| Module | Description |
+|--------|-------------|
+| `orders` | Place, modify, cancel, and query orders |
+| `portfolio` | Get holdings, positions, and convert positions |
+| `marketData` | Real-time and historical market data |
+| `funds` | Fund limits and margin calculator |
+| `authentication` | App-based and partner authentication |
+| `superOrders` | Advanced order types with targets and stop losses |
+| `foreverOrders` | GTT (Good Till Triggered) orders |
+| `optionChain` | Option chain data and Greeks |
+| `edis` | E-DIS authentication and inquiry |
+| `statements` | Ledger and trade history |
+| `tradersControl` | Kill switch functionality |
+| `scanner` | Market scanner for equity and F&O |
+
+## WebSocket Feeds
+
+| Feed | Description |
+|------|-------------|
+| `liveFeed` | Real-time market data (ticker, quote, full) |
+| `liveOrderUpdate` | Real-time order status updates |
+| `marketDepthFeed20` | Level 2 market depth (20 levels) |
+| `marketDepthFeed200` | Level 2 market depth (200 levels) |
+| `multiConnectionLiveFeed` | Multiple concurrent connections |
+| `mockLiveFeed` | Testing without live connection |
+
+## Next Steps
+
+<Cards>
+  <Card title="Getting Started" href="/docs/getting-started" description="Installation, setup, and basic usage" />
+  <Card title="Authentication" href="/docs/authentication" description="Learn about authentication flows" />
+  <Card title="API Reference" href="/docs/api-reference" description="Complete API documentation" />
+  <Card title="Examples" href="/docs/examples" description="Real-world code examples" />
+</Cards>
+
+## Support
+
+- **GitHub**: [anshuopinion/dhan-ts](https://github.com/anshuopinion/dhan-ts)
+- **Issues**: [Report bugs or request features](https://github.com/anshuopinion/dhan-ts/issues)
+- **npm**: [dhan-ts on npm](https://www.npmjs.com/package/dhan-ts)
