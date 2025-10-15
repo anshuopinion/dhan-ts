@@ -1,3 +1,71 @@
 @import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+/* Custom Blue Theme - Based on Material Design Colors */
+@theme {
+  /* Light Mode - WCAG AA Compliant Contrast */
+  --color-fd-background: hsl(0, 0%, 100%);
+  --color-fd-foreground: hsl(232, 20%, 15%);
+
+  /* Muted - subtle blue tint for hover states and subtle backgrounds */
+  --color-fd-muted: hsl(232, 20%, 96%);
+  --color-fd-muted-foreground: hsl(232, 15%, 35%);
+
+  --color-fd-popover: hsl(0, 0%, 100%);
+  --color-fd-popover-foreground: hsl(232, 20%, 15%);
+
+  /* Cards - slightly tinted */
+  --color-fd-card: hsl(232, 15%, 98%);
+  --color-fd-card-foreground: hsl(232, 20%, 15%);
+
+  --color-fd-border: hsl(232, 20%, 82%);
+
+  /* Primary - Material Design Blue (#4051b5) */
+  --color-fd-primary: hsl(232, 47%, 49%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+
+  /* Secondary - for sidebar active/selected states */
+  --color-fd-secondary: hsl(232, 25%, 92%);
+  --color-fd-secondary-foreground: hsl(232, 50%, 30%);
+
+  /* Accent - subtle hover states with excellent contrast */
+  --color-fd-accent: hsl(232, 30%, 94%);
+  --color-fd-accent-foreground: hsl(232, 50%, 25%);
+
+  /* Ring/Focus */
+  --color-fd-ring: hsl(232, 47%, 49%);
+}
+
+.dark {
+  /* Dark Mode - WCAG AA Compliant Contrast */
+  --color-fd-background: hsl(232, 20%, 8%);
+  --color-fd-foreground: hsl(232, 5%, 95%);
+
+  /* Muted - subtle blue tint for hover states */
+  --color-fd-muted: hsl(232, 20%, 16%);
+  --color-fd-muted-foreground: hsl(232, 10%, 72%);
+
+  --color-fd-popover: hsl(232, 20%, 10%);
+  --color-fd-popover-foreground: hsl(232, 5%, 92%);
+
+  /* Cards - slightly lighter */
+  --color-fd-card: hsl(232, 18%, 12%);
+  --color-fd-card-foreground: hsl(232, 5%, 96%);
+
+  --color-fd-border: hsl(232, 15%, 28%);
+
+  /* Primary - Lighter blue with white text */
+  --color-fd-primary: hsl(232, 47%, 56%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+
+  /* Secondary - for sidebar active/selected states */
+  --color-fd-secondary: hsl(232, 30%, 22%);
+  --color-fd-secondary-foreground: hsl(232, 40%, 82%);
+
+  /* Accent - subtle hover states with excellent contrast */
+  --color-fd-accent: hsl(232, 25%, 18%);
+  --color-fd-accent-foreground: hsl(232, 5%, 92%);
+
+  /* Ring/Focus */
+  --color-fd-ring: hsl(232, 47%, 60%);
+}
