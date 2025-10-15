@@ -1,0 +1,537 @@
+---
+title: Authentication
+description: Learn about different authentication methods for Dhan API
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps } from 'fumadocs-ui/components/steps';
+
+# Authentication
+
+Dhan API supports multiple authentication methods depending on your use case. This guide covers all available authentication flows.
+
+## Authentication Methods
+
+Dhan provides three authentication methods:
+
+1. **App-based Authentication** - For individual developers building applications for their own trading
+2. **Partner Authentication** - For partners building applications for multiple users
+3. **Static IP Authentication** - Enhanced security by whitelisting IP addresses
+
+## App-based Authentication
+
+App-based authentication is designed for individual developers who want to build trading applications for their own use.
+
+<Steps>
+
+### Generate API Credentials
+
+1. Log in to your Dhan account
+2. Navigate to API Settings
+3. Generate your API Key and API Secret
+4. Note down your Client ID
+
+### Generate Consent
+
+Use the `generateConsentApp` method to initiate the authentication flow:
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: '', // Not needed for consent generation
+  clientId: 'your-client-id',
+  env: DhanEnv.PROD,
+});
+
+async function generateConsent() {
+  try {
+    const consent = await client.authentication.generateConsentApp(
+      'your-api-key',
+      'your-api-secret',
+      'your-client-id'
+    );
+
+    console.log('Consent App ID:', consent.consentAppId);
+    console.log('Status:', consent.consentAppStatus);
+
+    // Redirect user to Dhan login page
+    const loginUrl = `https://auth.dhan.co/app/login?consentAppId=${consent.consentAppId}`;
+    console.log('Redirect user to:', loginUrl);
+  } catch (error) {
+    console.error('Error generating consent:', error);
+  }
+}
+
+generateConsent();
+```
+
+### Handle Redirect
+
+After the user logs in on Dhan's website, they will be redirected back to your application with a `tokenId` in the URL:
+
+```
+https://your-app.com/callback?tokenId=abc123...
+```
+
+### Consume Consent
+
+Exchange the `tokenId` for an access token:
+
+```typescript
+async function consumeConsent(tokenId: string) {
+  try {
+    const authData = await client.authentication.consumeConsentApp(
+      'your-api-key',
+      'your-api-secret',
+      tokenId
+    );
+
+    console.log('Access Token:', authData.accessToken);
+    console.log('Client ID:', authData.dhanClientId);
+    console.log('Client Name:', authData.dhanClientName);
+    console.log('Expiry Time:', authData.expiryTime);
+    console.log('Power of Attorney:', authData.givenPowerOfAttorney);
+
+    // Store the access token securely
+    // Use it to initialize DhanHqClient
+  } catch (error) {
+    console.error('Error consuming consent:', error);
+  }
+}
+```
+
+### Use Access Token
+
+Once you have the access token, use it to initialize the client:
+
+```typescript
+const authenticatedClient = new DhanHqClient({
+  accessToken: authData.accessToken,
+  clientId: authData.dhanClientId,
+  env: DhanEnv.PROD,
+});
+
+// Now you can make API calls
+const orders = await authenticatedClient.orders.getOrders();
+```
+
+</Steps>
+
+<Callout type="info">
+  Access tokens have an expiry time. You'll need to re-authenticate when the token expires.
+</Callout>
+
+## Partner Authentication
+
+Partner authentication is for partners who want to build applications that multiple Dhan users can use.
+
+<Steps>
+
+### Get Partner Credentials
+
+Contact Dhan to obtain your Partner ID and Partner Secret.
+
+### Generate Partner Consent
+
+```typescript
+async function generatePartnerConsent() {
+  try {
+    const consent = await client.authentication.generateConsentPartner(
+      'your-partner-id',
+      'your-partner-secret'
+    );
+
+    console.log('Consent ID:', consent.consentId);
+    console.log('Status:', consent.consentStatus);
+
+    // Redirect user to Dhan login page
+    const loginUrl = `https://auth.dhan.co/partner/login?consentId=${consent.consentId}`;
+    console.log('Redirect user to:', loginUrl);
+  } catch (error) {
+    console.error('Error generating partner consent:', error);
+  }
+}
+```
+
+### Consume Partner Consent
+
+After the user authorizes your application, exchange the `tokenId` for an access token:
+
+```typescript
+async function consumePartnerConsent(tokenId: string) {
+  try {
+    const authData = await client.authentication.consumeConsentPartner(
+      'your-partner-id',
+      'your-partner-secret',
+      tokenId
+    );
+
+    console.log('Access Token:', authData.accessToken);
+    console.log('Client ID:', authData.dhanClientId);
+    console.log('Client Name:', authData.dhanClientName);
+    console.log('UCC:', authData.dhanClientUcc);
+    console.log('Expiry Time:', authData.expiryTime);
+
+    // Store the access token mapped to the user
+  } catch (error) {
+    console.error('Error consuming partner consent:', error);
+  }
+}
+```
+
+</Steps>
+
+## Static IP Management
+
+For enhanced security, you can whitelist specific IP addresses from which API requests can be made.
+
+### Set Static IP
+
+You can set a primary and secondary IP address:
+
+```typescript
+import { IPFlag } from 'dhan-ts';
+
+async function setStaticIP() {
+  try {
+    const response = await client.authentication.setIP({
+      dhanClientId: 'your-client-id',
+      ip: '123.456.789.012',
+      ipFlag: IPFlag.PRIMARY, // or IPFlag.SECONDARY
+    });
+
+    console.log('Message:', response.message);
+    console.log('Status:', response.status);
+  } catch (error) {
+    console.error('Error setting IP:', error);
+  }
+}
+```
+
+<Callout type="warn">
+  Once an IP is set, it cannot be modified for 7 days. Plan accordingly.
+</Callout>
+
+### Modify Static IP
+
+After 7 days, you can modify the IP address:
+
+```typescript
+async function modifyStaticIP() {
+  try {
+    const response = await client.authentication.modifyIP({
+      dhanClientId: 'your-client-id',
+      ip: '123.456.789.999',
+      ipFlag: IPFlag.PRIMARY,
+    });
+
+    console.log('Message:', response.message);
+    console.log('Status:', response.status);
+  } catch (error) {
+    console.error('Error modifying IP:', error);
+  }
+}
+```
+
+### Get Current IPs
+
+Retrieve your currently configured IP addresses:
+
+```typescript
+async function getCurrentIPs() {
+  try {
+    const ips = await client.authentication.getIP();
+
+    console.log('Primary IP:', ips.primaryIP);
+    console.log('Primary Modified Date:', ips.modifyDatePrimary);
+    console.log('Secondary IP:', ips.secondaryIP);
+    console.log('Secondary Modified Date:', ips.modifyDateSecondary);
+  } catch (error) {
+    console.error('Error getting IPs:', error);
+  }
+}
+```
+
+## User Profile
+
+Get information about the authenticated user and token status:
+
+```typescript
+async function getUserProfile() {
+  try {
+    const profile = await client.authentication.getUserProfile();
+
+    console.log('Client ID:', profile.dhanClientId);
+    console.log('Token Validity:', profile.tokenValidity);
+    console.log('Active Segment:', profile.activeSegment);
+    console.log('DDPI Status:', profile.ddpi);
+    console.log('MTF Enabled:', profile.mtf);
+    console.log('Data Plan:', profile.dataPlan);
+    console.log('Data Validity:', profile.dataValidity);
+  } catch (error) {
+    console.error('Error getting profile:', error);
+  }
+}
+```
+
+<Callout type="info">
+  Use `getUserProfile()` to check if your access token is still valid and to verify account settings.
+</Callout>
+
+## Complete Authentication Flow Example
+
+Here's a complete example of the app-based authentication flow:
+
+<Tabs items={['Express Server', 'Next.js']}>
+<Tab value="Express Server">
+
+```typescript
+import express from 'express';
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const app = express();
+const API_KEY = process.env.DHAN_API_KEY!;
+const API_SECRET = process.env.DHAN_API_SECRET!;
+const CLIENT_ID = process.env.DHAN_CLIENT_ID!;
+
+const client = new DhanHqClient({
+  accessToken: '',
+  clientId: CLIENT_ID,
+  env: DhanEnv.PROD,
+});
+
+// Store tokens in memory (use database in production)
+const tokens = new Map<string, string>();
+
+// Initiate authentication
+app.get('/auth/login', async (req, res) => {
+  try {
+    const consent = await client.authentication.generateConsentApp(
+      API_KEY,
+      API_SECRET,
+      CLIENT_ID
+    );
+
+    const loginUrl = `https://auth.dhan.co/app/login?consentAppId=${consent.consentAppId}`;
+    res.redirect(loginUrl);
+  } catch (error) {
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// Handle callback
+app.get('/auth/callback', async (req, res) => {
+  const { tokenId } = req.query;
+
+  if (!tokenId) {
+    return res.status(400).json({ error: 'Missing tokenId' });
+  }
+
+  try {
+    const authData = await client.authentication.consumeConsentApp(
+      API_KEY,
+      API_SECRET,
+      tokenId as string
+    );
+
+    // Store the access token
+    tokens.set(authData.dhanClientId, authData.accessToken);
+
+    res.json({
+      message: 'Authentication successful',
+      clientId: authData.dhanClientId,
+      clientName: authData.dhanClientName,
+      expiryTime: authData.expiryTime,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to consume consent' });
+  }
+});
+
+// Use authenticated client
+app.get('/api/orders', async (req, res) => {
+  const clientId = req.headers['x-client-id'] as string;
+  const accessToken = tokens.get(clientId);
+
+  if (!accessToken) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const authenticatedClient = new DhanHqClient({
+    accessToken,
+    clientId,
+    env: DhanEnv.PROD,
+  });
+
+  try {
+    const orders = await authenticatedClient.orders.getOrders();
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
+```
+
+</Tab>
+<Tab value="Next.js">
+
+```typescript
+// app/api/auth/login/route.ts
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+import { NextResponse } from 'next/server';
+
+const client = new DhanHqClient({
+  accessToken: '',
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+export async function GET() {
+  try {
+    const consent = await client.authentication.generateConsentApp(
+      process.env.DHAN_API_KEY!,
+      process.env.DHAN_API_SECRET!,
+      process.env.DHAN_CLIENT_ID!
+    );
+
+    const loginUrl = `https://auth.dhan.co/app/login?consentAppId=${consent.consentAppId}`;
+    return NextResponse.redirect(loginUrl);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Authentication failed' },
+      { status: 500 }
+    );
+  }
+}
+
+// app/api/auth/callback/route.ts
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const tokenId = searchParams.get('tokenId');
+
+  if (!tokenId) {
+    return NextResponse.json(
+      { error: 'Missing tokenId' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const authData = await client.authentication.consumeConsentApp(
+      process.env.DHAN_API_KEY!,
+      process.env.DHAN_API_SECRET!,
+      tokenId
+    );
+
+    // Store in session/database
+    // For example, using cookies:
+    const response = NextResponse.json({
+      message: 'Authentication successful',
+      clientId: authData.dhanClientId,
+    });
+
+    response.cookies.set('dhan_access_token', authData.accessToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 86400, // 24 hours
+    });
+
+    return response;
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to consume consent' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+</Tab>
+</Tabs>
+
+## Security Best Practices
+
+1. **Never expose credentials in client-side code** - Always handle authentication on the server
+2. **Store access tokens securely** - Use encrypted databases or secure session storage
+3. **Implement token refresh logic** - Re-authenticate before tokens expire
+4. **Use HTTPS** - Always use secure connections for API calls
+5. **Rotate API secrets regularly** - Update your API credentials periodically
+6. **Enable static IP** - Whitelist IP addresses for production environments
+7. **Monitor token usage** - Track authentication attempts and API usage
+
+## Error Handling
+
+Common authentication errors and how to handle them:
+
+```typescript
+import { DhanApiError } from 'dhan-ts';
+
+async function handleAuthentication() {
+  try {
+    const consent = await client.authentication.generateConsentApp(
+      API_KEY,
+      API_SECRET,
+      CLIENT_ID
+    );
+  } catch (error) {
+    if (error.code === 'DH-901') {
+      console.error('Invalid authentication credentials');
+    } else if (error.code === 'DH-902') {
+      console.error('Invalid access - check your permissions');
+    } else if (error.code === 'DH-904') {
+      console.error('Rate limit exceeded - please wait');
+    } else {
+      console.error('Authentication failed:', error.message);
+    }
+  }
+}
+```
+
+## TypeScript Types
+
+Key authentication-related types:
+
+```typescript
+interface GenerateConsentAppResponse {
+  consentAppId: string;
+  consentAppStatus: string;
+  status: string;
+}
+
+interface ConsumeConsentAppResponse {
+  dhanClientId: string;
+  dhanClientName: string;
+  dhanClientUcc: string;
+  givenPowerOfAttorney: boolean;
+  accessToken: string;
+  expiryTime: string;
+}
+
+interface UserProfileResponse {
+  dhanClientId: string;
+  tokenValidity: string;
+  activeSegment: string;
+  ddpi: string;
+  mtf: string;
+  dataPlan: string;
+  dataValidity: string;
+}
+
+enum IPFlag {
+  PRIMARY = "PRIMARY",
+  SECONDARY = "SECONDARY",
+}
+```
+
+## Next Steps
+
+- [Orders API](/docs/api-reference/orders) - Start placing orders
+- [Portfolio](/docs/api-reference/portfolio) - View your holdings and positions
+- [Market Data](/docs/api-reference/market-data) - Access market data
+- [WebSocket Feeds](/docs/feeds/live-feed) - Real-time data feeds

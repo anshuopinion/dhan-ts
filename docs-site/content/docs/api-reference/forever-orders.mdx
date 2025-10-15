@@ -1,0 +1,443 @@
+---
+title: Forever Orders (GTT)
+description: Good Till Triggered orders that remain active until executed or cancelled
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Forever Orders (GTT)
+
+Forever Orders, also known as GTT (Good Till Triggered) orders, remain active until they are either executed or explicitly cancelled. These are ideal for long-term price targets or stop losses.
+
+## Accessing the Forever Orders API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const foreverOrders = client.foreverOrders;
+```
+
+## Methods
+
+### Create Forever Order
+
+Create a new forever order.
+
+```typescript
+async createForeverOrder(
+  orderRequest: ForeverOrderRequest
+): Promise<ForeverOrderResponse>
+```
+
+#### Example
+
+```typescript
+import {
+  OrderFlag,
+  TransactionType,
+  ExchangeSegment,
+  ProductType,
+  OrderType,
+  Validity
+} from 'dhan-ts';
+
+async function createForeverOrder() {
+  try {
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      orderFlag: OrderFlag.SINGLE,
+      transactionType: TransactionType.BUY,
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      productType: ProductType.CNC,
+      orderType: OrderType.LIMIT,
+      validity: Validity.DAY,
+      securityId: '1333',
+      quantity: 10,
+      price: 1800.00,          // Limit price
+      triggerPrice: 1795.00,   // Trigger price
+    };
+
+    const response = await client.foreverOrders.createForeverOrder(orderRequest);
+
+    console.log('Forever Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error creating forever order:', error);
+  }
+}
+```
+
+### Create OCO Forever Order
+
+Create an OCO (One Cancels Other) forever order with two legs.
+
+```typescript
+async function createOCOForeverOrder() {
+  try {
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      orderFlag: OrderFlag.OCO,  // One Cancels Other
+      transactionType: TransactionType.SELL,
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      productType: ProductType.CNC,
+      orderType: OrderType.LIMIT,
+      validity: Validity.DAY,
+      securityId: '1333',
+      quantity: 10,
+
+      // First leg (Target)
+      price: 2000.00,
+      triggerPrice: 1995.00,
+
+      // Second leg (Stop Loss)
+      price1: 1750.00,
+      triggerPrice1: 1755.00,
+      quantity1: 10,
+    };
+
+    const response = await client.foreverOrders.createForeverOrder(orderRequest);
+
+    console.log('OCO Forever Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error creating OCO forever order:', error);
+  }
+}
+```
+
+<Callout type="info">
+  OCO orders are useful for holding positions with both target and stop loss. When one leg is triggered, the other is automatically cancelled.
+</Callout>
+
+### Modify Forever Order
+
+Modify an existing forever order.
+
+```typescript
+async modifyForeverOrder(
+  orderId: string,
+  modifyRequest: ModifyForeverOrderRequest
+): Promise<ForeverOrderResponse>
+```
+
+#### Example
+
+```typescript
+async function modifyForeverOrder() {
+  try {
+    const orderId = '123456789';
+
+    const modifyRequest = {
+      dhanClientId: 'your-client-id',
+      orderId: orderId,
+      orderFlag: OrderFlag.SINGLE,
+      orderType: OrderType.LIMIT,
+      quantity: 15,            // Change quantity
+      price: 1820.00,          // New price
+      triggerPrice: 1815.00,   // New trigger
+      validity: Validity.DAY,
+    };
+
+    const response = await client.foreverOrders.modifyForeverOrder(
+      orderId,
+      modifyRequest
+    );
+
+    console.log('Modified Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error modifying forever order:', error);
+  }
+}
+```
+
+### Cancel Forever Order
+
+Cancel a forever order.
+
+```typescript
+async cancelForeverOrder(orderId: string): Promise<ForeverOrderResponse>
+```
+
+#### Example
+
+```typescript
+async function cancelForeverOrder() {
+  try {
+    const orderId = '123456789';
+
+    const response = await client.foreverOrders.cancelForeverOrder(orderId);
+
+    console.log('Cancelled Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error cancelling forever order:', error);
+  }
+}
+```
+
+### Get All Forever Orders
+
+Retrieve all forever orders (both active and completed).
+
+```typescript
+async getAllForeverOrders(): Promise<ForeverOrderDetail[]>
+```
+
+#### Example
+
+```typescript
+async function getAllForeverOrders() {
+  try {
+    const orders = await client.foreverOrders.getAllForeverOrders();
+
+    console.log(`Total Forever Orders: ${orders.length}`);
+
+    orders.forEach(order => {
+      console.log(`Order ID: ${order.orderId}`);
+      console.log(`Symbol: ${order.tradingSymbol}`);
+      console.log(`Status: ${order.orderStatus}`);
+      console.log(`Order Flag: ${order.orderFlag}`);
+      console.log(`Transaction: ${order.transactionType}`);
+      console.log(`Quantity: ${order.quantity}`);
+      console.log(`Price: ${order.price}`);
+      console.log(`Trigger Price: ${order.triggerPrice}`);
+      console.log(`Create Time: ${order.createTime}`);
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching forever orders:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+### ForeverOrderRequest
+
+```typescript
+interface ForeverOrderRequest {
+  dhanClientId: string;
+  correlationId?: string;
+  orderFlag: OrderFlag;           // SINGLE or OCO
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegment;
+  productType: ProductType;
+  orderType: OrderType;
+  validity: Validity;
+  securityId: string;
+  quantity: number;
+  disclosedQuantity?: number;
+  price: number;
+  triggerPrice: number;
+  // For OCO orders (second leg)
+  price1?: number;
+  triggerPrice1?: number;
+  quantity1?: number;
+}
+```
+
+### ForeverOrderDetail
+
+```typescript
+interface ForeverOrderDetail extends ForeverOrderRequest {
+  orderId: string;
+  orderStatus: OrderStatus;
+  tradingSymbol: string;
+  legName?: LegName;
+  createTime: string;
+  updateTime: string;
+  exchangeTime: string;
+  drvExpiryDate?: string;
+  drvOptionType?: DrvOptionType;
+  drvStrikePrice?: number;
+}
+```
+
+### OrderFlag Enum
+
+```typescript
+enum OrderFlag {
+  SINGLE = "SINGLE",  // Single leg order
+  OCO = "OCO",        // One Cancels Other (two legs)
+}
+```
+
+## Use Cases
+
+### Long-term Buy Orders
+
+Set a forever order to buy when price falls to desired level:
+
+```typescript
+async function buyOnDip() {
+  // Buy when price falls to 1750
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    orderFlag: OrderFlag.SINGLE,
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegment.NSE_EQ,
+    productType: ProductType.CNC,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1750.00,
+    triggerPrice: 1755.00,
+  };
+
+  const response = await client.foreverOrders.createForeverOrder(orderRequest);
+  console.log('Forever buy order placed:', response.orderId);
+}
+```
+
+### Trailing Profit Booking
+
+Set target and stop loss for existing holdings:
+
+```typescript
+async function setExitLevels() {
+  // Current holding at avg price of 1850
+  // Set target at 2000 and SL at 1750
+
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    orderFlag: OrderFlag.OCO,
+    transactionType: TransactionType.SELL,
+    exchangeSegment: ExchangeSegment.NSE_EQ,
+    productType: ProductType.CNC,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    // Target leg
+    price: 2000.00,
+    triggerPrice: 1995.00,
+    // Stop loss leg
+    price1: 1750.00,
+    triggerPrice1: 1755.00,
+    quantity1: 10,
+  };
+
+  const response = await client.foreverOrders.createForeverOrder(orderRequest);
+  console.log('OCO exit order placed:', response.orderId);
+}
+```
+
+### Monitor and Adjust Forever Orders
+
+```typescript
+async function monitorAndAdjust() {
+  const orders = await client.foreverOrders.getAllForeverOrders();
+
+  const activeOrders = orders.filter(
+    o => o.orderStatus === OrderStatus.PENDING
+  );
+
+  console.log(`Active forever orders: ${activeOrders.length}`);
+
+  // Get current market price
+  const ltp = await client.marketData.getLTP({ "NSE_EQ": [1333] });
+  const currentPrice = ltp.data["NSE_EQ"]["1333"].last_price;
+
+  for (const order of activeOrders) {
+    // If price has moved significantly, adjust trigger
+    const priceGap = Math.abs(currentPrice - order.triggerPrice);
+
+    if (priceGap > 100) { // More than 100 rupees gap
+      await client.foreverOrders.modifyForeverOrder(order.orderId, {
+        dhanClientId: 'your-client-id',
+        orderId: order.orderId,
+        orderFlag: order.orderFlag,
+        orderType: order.orderType,
+        quantity: order.quantity,
+        price: currentPrice - 10,
+        triggerPrice: currentPrice - 5,
+        validity: order.validity,
+      });
+
+      console.log(`Adjusted order ${order.orderId} to new levels`);
+    }
+  }
+}
+```
+
+### Bulk Forever Orders
+
+Set multiple forever orders for portfolio:
+
+```typescript
+async function setBulkExitOrders() {
+  const holdings = await client.portfolio.getHoldings();
+
+  for (const holding of holdings) {
+    if (holding.availableQty === 0) continue;
+
+    // Set 10% profit target and 5% stop loss
+    const avgPrice = holding.avgCostPrice;
+    const targetPrice = avgPrice * 1.10;
+    const slPrice = avgPrice * 0.95;
+
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      orderFlag: OrderFlag.OCO,
+      transactionType: TransactionType.SELL,
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      productType: ProductType.CNC,
+      orderType: OrderType.LIMIT,
+      validity: Validity.DAY,
+      securityId: holding.securityId,
+      quantity: holding.availableQty,
+      price: targetPrice,
+      triggerPrice: targetPrice - 5,
+      price1: slPrice,
+      triggerPrice1: slPrice + 5,
+      quantity1: holding.availableQty,
+    };
+
+    try {
+      const response = await client.foreverOrders.createForeverOrder(
+        orderRequest
+      );
+      console.log(`Set exit order for ${holding.tradingSymbol}`);
+    } catch (error) {
+      console.error(`Failed for ${holding.tradingSymbol}:`, error);
+    }
+  }
+}
+```
+
+## Best Practices
+
+1. **Use OCO for risk management** on existing holdings
+2. **Set realistic trigger prices** based on support/resistance
+3. **Monitor and adjust** orders as market conditions change
+4. **Use SINGLE flag** for simple buy/sell triggers
+5. **Check order status** periodically to ensure they're active
+6. **Cancel old orders** that are no longer relevant
+7. **Maintain order documentation** with correlation IDs
+
+<Callout type="warn">
+  Forever orders remain active indefinitely until triggered or cancelled. Remember to cancel outdated orders to avoid unwanted executions.
+</Callout>
+
+## Differences from Regular Orders
+
+| Feature | Regular Orders | Forever Orders |
+|---------|---------------|----------------|
+| Validity | Day/IOC | Until triggered/cancelled |
+| Trigger | Immediate | Price-based trigger |
+| Use Case | Immediate execution | Future price levels |
+| Complexity | Simple | Can be OCO |
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Regular order placement
+- [Super Orders](/docs/api-reference/super-orders) - Advanced orders with trailing SL
+- [Portfolio](/docs/api-reference/portfolio) - View holdings to set exit orders

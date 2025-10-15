@@ -1,0 +1,124 @@
+---
+title: E-DIS API
+description: Electronic Delivery Instruction Slip for selling holdings
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# E-DIS API
+
+E-DIS (Electronic Delivery Instruction Slip) is required to sell holdings from your demat account. This API helps you generate TPIN, create E-DIS forms, and check authorization status.
+
+## Accessing the E-DIS API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const edis = client.edis;
+```
+
+## Methods
+
+### Generate TPIN
+
+Generate a TPIN (Transaction PIN) for E-DIS authorization.
+
+```typescript
+async generateTpin(): Promise<void>
+```
+
+#### Example
+
+```typescript
+async function generateTPIN() {
+  await client.edis.generateTpin();
+  console.log('TPIN generated and sent to registered mobile/email');
+}
+```
+
+### Generate E-DIS Form
+
+Create an E-DIS form for selling holdings.
+
+```typescript
+async generateEdisForm(
+  request: EdisFormRequest
+): Promise<EdisFormResponse>
+```
+
+#### Example
+
+```typescript
+async function createEdisForm() {
+  const request = {
+    isin: 'INE002A01018',  // Reliance ISIN
+    qty: 10,
+    exchange: 'NSE',
+    segment: 'EQ',
+    bulk: false,
+  };
+
+  const response = await client.edis.generateEdisForm(request);
+
+  console.log('Client ID:', response.dhanClientId);
+  console.log('E-DIS Form HTML:', response.edisFormHtml);
+
+  // Render the HTML form for user to complete CDSL authorization
+}
+```
+
+### Inquire E-DIS Status
+
+Check the status of E-DIS authorization.
+
+```typescript
+async inquireEdisStatus(isin: string): Promise<EdisInquiryResponse>
+```
+
+#### Example
+
+```typescript
+async function checkEdisStatus() {
+  const isin = 'INE002A01018';
+
+  const status = await client.edis.inquireEdisStatus(isin);
+
+  console.log('Client ID:', status.clientId);
+  console.log('ISIN:', status.isin);
+  console.log('Total Quantity:', status.totalQty);
+  console.log('Approved Quantity:', status.aprvdQty);
+  console.log('Status:', status.status);
+  console.log('Remarks:', status.remarks);
+}
+```
+
+## E-DIS Workflow
+
+1. **Generate TPIN**: Get OTP on registered mobile/email
+2. **Generate E-DIS Form**: Create authorization form
+3. **User Authorization**: User completes CDSL authorization with TPIN
+4. **Inquire Status**: Check if authorization is successful
+5. **Place Sell Order**: Once approved, place sell order
+
+<Callout type="info">
+  E-DIS authorization is required for CDSL accounts. POA (Power of Attorney) users don't need E-DIS.
+</Callout>
+
+## Best Practices
+
+1. **Check authorization status** before placing sell orders
+2. **Generate TPIN** only when needed
+3. **Handle authorization UI** properly for user experience
+4. **Store authorization status** to avoid repeated requests
+5. **Handle bulk authorization** for multiple holdings
+
+## Related APIs
+
+- [Portfolio API](/docs/api-reference/portfolio) - View holdings
+- [Orders API](/docs/api-reference/orders) - Place sell orders after authorization

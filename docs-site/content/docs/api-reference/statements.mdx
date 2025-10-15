@@ -1,0 +1,169 @@
+---
+title: Statements API
+description: Access ledger reports and trade history
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Statements API
+
+The Statements API provides access to your account ledger and trade history for reconciliation and record-keeping.
+
+## Accessing the Statements API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const statements = client.statements;
+```
+
+## Methods
+
+### Get Ledger Report
+
+Fetch ledger entries for a date range.
+
+```typescript
+async getLedgerReport(
+  fromDate: string,
+  toDate: string
+): Promise<LedgerEntry[]>
+```
+
+#### Example
+
+```typescript
+async function getLedger() {
+  const ledger = await client.statements.getLedgerReport(
+    '2024-01-01',
+    '2024-01-31'
+  );
+
+  ledger.forEach(entry => {
+    console.log(`Date: ${entry.voucherdate}`);
+    console.log(`Narration: ${entry.narration}`);
+    console.log(`Description: ${entry.voucherdesc}`);
+    console.log(`Debit: ₹${entry.debit}`);
+    console.log(`Credit: ₹${entry.credit}`);
+    console.log(`Balance: ₹${entry.runbal}`);
+    console.log('---');
+  });
+}
+```
+
+### Get Trade History
+
+Fetch executed trades for a date range.
+
+```typescript
+async getTradeHistory(
+  fromDate: string,
+  toDate: string,
+  page?: number
+): Promise<TradeHistoryEntry[]>
+```
+
+#### Example
+
+```typescript
+async function getTradeHistory() {
+  const trades = await client.statements.getTradeHistory(
+    '2024-01-01',
+    '2024-01-31',
+    0  // Page number
+  );
+
+  let totalBrokerage = 0;
+  let totalSTT = 0;
+
+  trades.forEach(trade => {
+    console.log(`Order ID: ${trade.orderId}`);
+    console.log(`Symbol: ${trade.tradingSymbol}`);
+    console.log(`Quantity: ${trade.tradedQuantity}`);
+    console.log(`Price: ₹${trade.tradedPrice}`);
+    console.log(`Brokerage: ₹${trade.brokerageCharges}`);
+    console.log(`STT: ₹${trade.stt}`);
+    console.log(`Exchange Charges: ₹${trade.exchangeTransactionCharges}`);
+    console.log('---');
+
+    totalBrokerage += trade.brokerageCharges;
+    totalSTT += trade.stt;
+  });
+
+  console.log(`Total Brokerage: ₹${totalBrokerage}`);
+  console.log(`Total STT: ₹${totalSTT}`);
+}
+```
+
+## Common Patterns
+
+### Calculate Monthly P&L
+
+```typescript
+async function calculateMonthlyPnL() {
+  const trades = await client.statements.getTradeHistory(
+    '2024-01-01',
+    '2024-01-31'
+  );
+
+  const positions = new Map<string, {
+    buyQty: number;
+    sellQty: number;
+    buyValue: number;
+    sellValue: number;
+  }>();
+
+  trades.forEach(trade => {
+    const key = trade.securityId;
+
+    if (!positions.has(key)) {
+      positions.set(key, {
+        buyQty: 0,
+        sellQty: 0,
+        buyValue: 0,
+        sellValue: 0,
+      });
+    }
+
+    const pos = positions.get(key)!;
+
+    if (trade.transactionType === 'BUY') {
+      pos.buyQty += trade.tradedQuantity;
+      pos.buyValue += trade.tradedQuantity * trade.tradedPrice;
+    } else {
+      pos.sellQty += trade.tradedQuantity;
+      pos.sellValue += trade.tradedQuantity * trade.tradedPrice;
+    }
+  });
+
+  let totalPnL = 0;
+
+  positions.forEach((pos, symbol) => {
+    const realizedPnL = pos.sellValue - pos.buyValue;
+    totalPnL += realizedPnL;
+    console.log(`${symbol}: ₹${realizedPnL.toFixed(2)}`);
+  });
+
+  console.log(`\nTotal Monthly P&L: ₹${totalPnL.toFixed(2)}`);
+}
+```
+
+## Best Practices
+
+1. **Download statements monthly** for record-keeping
+2. **Reconcile with bank statements** regularly
+3. **Track brokerage and taxes** for tax filing
+4. **Use pagination** for large date ranges
+5. **Store historical data** for analysis
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Place and track orders
+- [Portfolio API](/docs/api-reference/portfolio) - View positions
+- [Funds API](/docs/api-reference/funds) - Check fund movements

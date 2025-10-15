@@ -1,0 +1,244 @@
+---
+title: Getting Started
+description: Learn how to install and set up dhan-ts in your project
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Getting Started
+
+This guide will help you get started with dhan-ts, a comprehensive TypeScript client for Dhan's trading API v2.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- Node.js 16 or higher
+- A Dhan trading account
+- Access token and client ID from Dhan
+
+<Callout type="info">
+  You can obtain your access token and client ID from the Dhan web platform under API settings.
+</Callout>
+
+## Installation
+
+<Steps>
+
+### Install the package
+
+Install dhan-ts using your preferred package manager:
+
+```bash npm2yarn
+npm install dhan-ts
+```
+
+### Import the library
+
+Import the main classes and types you need:
+
+```typescript
+import { DhanHqClient, DhanFeed, DhanEnv } from 'dhan-ts';
+```
+
+### Configure the client
+
+Create a configuration object with your credentials:
+
+```typescript
+const config = {
+  accessToken: 'your-access-token',
+  clientId: 'your-client-id',
+  env: DhanEnv.PROD, // Use DhanEnv.SANDBOX for testing
+};
+```
+
+<Callout type="warn">
+  Never commit your access token to version control. Use environment variables instead.
+</Callout>
+
+### Initialize clients
+
+Create instances of DhanHqClient and DhanFeed:
+
+```typescript
+// For REST API operations
+const dhanClient = new DhanHqClient(config);
+
+// For WebSocket feeds
+const dhanFeed = new DhanFeed(config);
+```
+
+</Steps>
+
+## Your First API Call
+
+Let's make a simple API call to get your fund limits:
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const client = new DhanHqClient(config);
+
+async function getFunds() {
+  try {
+    const funds = await client.funds.getFundLimit();
+    console.log('Available Balance:', funds.availabelBalance);
+    console.log('Utilized Amount:', funds.utilizedAmount);
+  } catch (error) {
+    console.error('Error fetching funds:', error);
+  }
+}
+
+getFunds();
+```
+
+## Your First WebSocket Feed
+
+Here's how to subscribe to real-time market data:
+
+```typescript
+import { DhanFeed, DhanEnv, FeedRequestCode } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const feed = new DhanFeed(config);
+
+async function subscribeToMarketData() {
+  const liveFeed = feed.liveFeed;
+
+  // Connect to the feed
+  await liveFeed.connect();
+
+  // Subscribe to ticker data for Nifty 50
+  const instruments = [
+    [1, "13"], // NSE_EQ, Nifty 50 security ID
+  ];
+
+  liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+  // Listen for data
+  liveFeed.on('data', (data) => {
+    if (data.type === 'ticker') {
+      console.log('Last Traded Price:', data.lastTradedPrice);
+    }
+  });
+
+  // Handle errors
+  liveFeed.on('error', (error) => {
+    console.error('Feed error:', error);
+  });
+
+  // Handle disconnection
+  liveFeed.on('disconnect', (info) => {
+    console.log('Disconnected:', info.reason);
+  });
+}
+
+subscribeToMarketData();
+```
+
+## Environment Variables
+
+It's recommended to use environment variables for sensitive information:
+
+```bash
+# .env
+DHAN_ACCESS_TOKEN=your_access_token_here
+DHAN_CLIENT_ID=your_client_id_here
+```
+
+Then use a package like `dotenv` to load them:
+
+```typescript
+import 'dotenv/config';
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+};
+
+const client = new DhanHqClient(config);
+```
+
+## Sandbox Environment
+
+For testing and development, use the sandbox environment:
+
+```typescript
+const config = {
+  accessToken: 'sandbox-access-token',
+  clientId: 'sandbox-client-id',
+  env: DhanEnv.SANDBOX, // Points to sandbox.dhan.co
+};
+```
+
+<Callout type="info">
+  The sandbox environment uses test data and doesn't execute real trades. It's perfect for development and testing.
+</Callout>
+
+## Next Steps
+
+Now that you have dhan-ts set up, explore the following:
+
+- [Authentication](/docs/authentication) - Learn about different authentication flows
+- [Orders API](/docs/api-reference/orders) - Place and manage orders
+- [Market Data](/docs/api-reference/market-data) - Access real-time and historical market data
+- [WebSocket Feeds](/docs/feeds/live-feed) - Real-time data feeds
+- [Portfolio](/docs/api-reference/portfolio) - Manage your holdings and positions
+
+## Common Issues
+
+### TypeScript Errors
+
+Make sure your `tsconfig.json` includes:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "strict": true
+  }
+}
+```
+
+### Connection Errors
+
+If you encounter connection errors:
+
+1. Verify your access token is valid
+2. Check your network connection
+3. Ensure you're using the correct environment (PROD vs SANDBOX)
+4. Check if your IP is whitelisted (if using static IP authentication)
+
+### Rate Limiting
+
+Dhan API has rate limits. If you exceed them:
+
+- Wait for the rate limit to reset
+- Implement exponential backoff
+- Cache responses when possible
+- Use WebSocket feeds for real-time data instead of polling
+
+## Support
+
+Need help? Here's where to go:
+
+- [GitHub Issues](https://github.com/anshuopinion/dhan-ts/issues) - Report bugs or request features
+- [API Reference](/docs/api-reference) - Complete API documentation
+- [Dhan API Docs](https://dhanhq.co/docs) - Official Dhan API documentation

@@ -1,0 +1,85 @@
+---
+title: Scanner API
+description: Screen stocks based on technical and fundamental criteria
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Scanner API
+
+The Scanner API allows you to screen and filter stocks based on various technical and fundamental criteria. This is useful for finding trading opportunities and building watchlists.
+
+## Accessing the Scanner API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const scanner = client.scanner;
+```
+
+## Scan
+
+Execute a scanner query with custom criteria.
+
+```typescript
+async scan(request: ScannerRequest): Promise<ScannerResponse>
+```
+
+### Example
+
+```typescript
+async function scanStocks() {
+  const request = {
+    // Scanner configuration
+    // This is passed directly to Dhan's scanner API
+    // Refer to Dhan's scanner documentation for available filters
+  };
+
+  const results = await client.scanner.scan(request);
+
+  console.log('Scanner Results:', results);
+}
+```
+
+<Callout type="info">
+  The Scanner API is a wrapper around Dhan's public scanner endpoint. It accepts custom scanner configurations and returns matching stocks based on your criteria.
+</Callout>
+
+## Common Use Cases
+
+### Find High Volume Stocks
+
+Find stocks with above-average volume
+
+### Breakout Stocks
+
+Identify stocks breaking out of resistance levels
+
+### Momentum Stocks
+
+Find stocks with strong upward momentum
+
+### Value Stocks
+
+Screen for undervalued stocks based on fundamentals
+
+## Best Practices
+
+1. **Define clear criteria** for scanning
+2. **Limit result set** to manageable size
+3. **Combine multiple filters** for better results
+4. **Backtest scanner results** before trading
+5. **Update scan criteria** based on market conditions
+6. **Monitor scanner performance** regularly
+
+## Related APIs
+
+- [Market Data](/docs/api-reference/market-data) - Get detailed data for scanned stocks
+- [Orders API](/docs/api-reference/orders) - Place orders for scanned stocks
+- [Option Chain](/docs/api-reference/option-chain) - Analyze options for scanned stocks

@@ -1,0 +1,393 @@
+---
+title: Super Orders API
+description: Advanced orders with target, stop loss, and trailing stop loss
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Super Orders API
+
+Super Orders are advanced order types that allow you to place orders with both target and stop-loss legs. They also support trailing stop losses that automatically adjust as the market moves in your favor.
+
+## Accessing the Super Orders API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const superOrders = client.superOrders;
+```
+
+## Methods
+
+### Place Super Order
+
+Place a new super order with target and stop loss.
+
+```typescript
+async placeSuperOrder(
+  orderRequest: SuperOrderRequest
+): Promise<SuperOrderResponse>
+```
+
+#### Example
+
+```typescript
+import {
+  TransactionType,
+  ExchangeSegmentText,
+  ProductType,
+  OrderType
+} from 'dhan-ts';
+
+async function placeSuperOrder() {
+  try {
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      transactionType: TransactionType.BUY,
+      exchangeSegment: ExchangeSegmentText.NSE_EQ,
+      productType: ProductType.INTRADAY,
+      orderType: OrderType.LIMIT,
+      securityId: '1333',
+      quantity: 10,
+      price: 1850.00,              // Entry price
+      targetPrice: 1900.00,        // Target price (+50)
+      stopLossPrice: 1820.00,      // Stop loss price (-30)
+      trailingJump: 10.00,         // Trailing SL jump
+    };
+
+    const response = await client.superOrders.placeSuperOrder(orderRequest);
+
+    console.log('Super Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error placing super order:', error);
+  }
+}
+```
+
+<Callout type="info">
+  Super Orders automatically create three legs: Entry, Target, and Stop Loss. When one leg is executed, others are automatically cancelled.
+</Callout>
+
+### Modify Super Order
+
+Modify a specific leg of an existing super order.
+
+```typescript
+async modifySuperOrder(
+  orderId: string,
+  modifyRequest: ModifySuperOrderRequest
+): Promise<SuperOrderResponse>
+```
+
+#### Example
+
+```typescript
+import { LegName } from 'dhan-ts';
+
+async function modifySuperOrder() {
+  try {
+    const orderId = '123456789';
+
+    const modifyRequest = {
+      dhanClientId: 'your-client-id',
+      orderId: orderId,
+      legName: LegName.TARGET_LEG,  // Modify target leg
+      quantity: 10,
+      price: 1920.00,               // New target price
+    };
+
+    const response = await client.superOrders.modifySuperOrder(
+      orderId,
+      modifyRequest
+    );
+
+    console.log('Modified Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error modifying super order:', error);
+  }
+}
+```
+
+### Cancel Super Order
+
+Cancel a specific leg of a super order.
+
+```typescript
+async cancelSuperOrder(
+  orderId: string,
+  legName: LegName
+): Promise<SuperOrderResponse>
+```
+
+#### Example
+
+```typescript
+async function cancelSuperOrderLeg() {
+  try {
+    const orderId = '123456789';
+
+    // Cancel the stop loss leg
+    const response = await client.superOrders.cancelSuperOrder(
+      orderId,
+      LegName.STOP_LOSS_LEG
+    );
+
+    console.log('Cancelled Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error cancelling super order:', error);
+  }
+}
+```
+
+<Callout type="warn">
+  Cancelling the entry leg will cancel the entire super order. Cancelling target or stop loss legs will leave only those legs active.
+</Callout>
+
+### Get Super Orders
+
+Retrieve all super orders for the day.
+
+```typescript
+async getSuperOrders(): Promise<SuperOrderDetail[]>
+```
+
+#### Example
+
+```typescript
+async function getAllSuperOrders() {
+  try {
+    const orders = await client.superOrders.getSuperOrders();
+
+    orders.forEach(order => {
+      console.log(`Order ID: ${order.orderId}`);
+      console.log(`Symbol: ${order.tradingSymbol}`);
+      console.log(`Status: ${order.orderStatus}`);
+      console.log(`Entry Price: ${order.price}`);
+      console.log(`LTP: ${order.ltp}`);
+
+      console.log('Leg Details:');
+      order.legDetails.forEach(leg => {
+        console.log(`  ${leg.legName}:`);
+        console.log(`    Price: ${leg.price}`);
+        console.log(`    Status: ${leg.orderStatus}`);
+        console.log(`    Remaining Qty: ${leg.remainingQuantity}`);
+        console.log(`    Trailing Jump: ${leg.trailingJump}`);
+      });
+
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching super orders:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+### SuperOrderRequest
+
+```typescript
+interface SuperOrderRequest {
+  dhanClientId: string;
+  correlationId?: string;
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegmentText;
+  productType: ProductType;
+  orderType: OrderType;
+  securityId: string;
+  quantity: number;
+  price: number;
+  targetPrice: number;      // Target price for profit booking
+  stopLossPrice: number;    // Stop loss price
+  trailingJump: number;     // Trailing SL increment
+}
+```
+
+### SuperOrderDetail
+
+```typescript
+interface SuperOrderDetail {
+  dhanClientId: string;
+  orderId: string;
+  orderStatus: OrderStatus;
+  tradingSymbol: string;
+  quantity: number;
+  price: number;
+  ltp: number;              // Last traded price
+  legDetails: SuperOrderLegDetail[];
+  // ... other fields
+}
+```
+
+### SuperOrderLegDetail
+
+```typescript
+interface SuperOrderLegDetail {
+  orderId: string;
+  legName: LegName;         // ENTRY_LEG, TARGET_LEG, STOP_LOSS_LEG
+  transactionType: TransactionType;
+  remainingQuantity: number;
+  triggeredQuantity: number;
+  price: number;
+  orderStatus: OrderStatus;
+  trailingJump: number;
+}
+```
+
+### LegName Enum
+
+```typescript
+enum LegName {
+  ENTRY_LEG = "ENTRY_LEG",
+  TARGET_LEG = "TARGET_LEG",
+  STOP_LOSS_LEG = "STOP_LOSS_LEG",
+}
+```
+
+## How Super Orders Work
+
+1. **Entry Leg**: Your buy/sell order at the specified price
+2. **Target Leg**: Automatic profit booking at target price
+3. **Stop Loss Leg**: Automatic exit at stop loss price
+4. **Trailing Stop Loss**: SL adjusts upward (for buy) as price moves in your favor
+
+### Trailing Stop Loss Example
+
+If you buy at ₹1850 with:
+- Target: ₹1900
+- Stop Loss: ₹1820
+- Trailing Jump: ₹10
+
+The stop loss will trail as follows:
+- Initial SL: ₹1820
+- When price hits ₹1860, SL moves to ₹1830
+- When price hits ₹1870, SL moves to ₹1840
+- When price hits ₹1880, SL moves to ₹1850 (breakeven)
+- And so on...
+
+## Common Patterns
+
+### Place Super Order with Risk Management
+
+```typescript
+async function placeSuperOrderWithRiskManagement() {
+  const entryPrice = 1850;
+  const riskPercent = 2;      // 2% risk
+  const rewardRatio = 2;      // 1:2 risk-reward
+
+  const stopLoss = entryPrice * (1 - riskPercent / 100);
+  const target = entryPrice + (entryPrice - stopLoss) * rewardRatio;
+
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.INTRADAY,
+    orderType: OrderType.LIMIT,
+    securityId: '1333',
+    quantity: 10,
+    price: entryPrice,
+    targetPrice: target,
+    stopLossPrice: stopLoss,
+    trailingJump: (entryPrice - stopLoss) / 5, // Trail every 20% of risk
+  };
+
+  const response = await client.superOrders.placeSuperOrder(orderRequest);
+  return response;
+}
+```
+
+### Monitor Super Order Progress
+
+```typescript
+async function monitorSuperOrder(orderId: string) {
+  const orders = await client.superOrders.getSuperOrders();
+  const order = orders.find(o => o.orderId === orderId);
+
+  if (!order) {
+    console.log('Order not found');
+    return;
+  }
+
+  const entryLeg = order.legDetails.find(l => l.legName === LegName.ENTRY_LEG);
+  const targetLeg = order.legDetails.find(l => l.legName === LegName.TARGET_LEG);
+  const slLeg = order.legDetails.find(l => l.legName === LegName.STOP_LOSS_LEG);
+
+  console.log('Super Order Status:');
+  console.log(`Entry: ${entryLeg?.orderStatus} at ₹${entryLeg?.price}`);
+  console.log(`Target: ${targetLeg?.orderStatus} at ₹${targetLeg?.price}`);
+  console.log(`Stop Loss: ${slLeg?.orderStatus} at ₹${slLeg?.price}`);
+  console.log(`Current Price: ₹${order.ltp}`);
+
+  const unrealizedPnL = (order.ltp - order.price) * order.quantity;
+  console.log(`Unrealized P&L: ₹${unrealizedPnL.toFixed(2)}`);
+}
+```
+
+### Auto-trail Stop Loss
+
+```typescript
+async function adjustTrailingStop(orderId: string) {
+  const orders = await client.superOrders.getSuperOrders();
+  const order = orders.find(o => o.orderId === orderId);
+
+  if (!order) return;
+
+  const entryPrice = order.price;
+  const currentPrice = order.ltp;
+  const slLeg = order.legDetails.find(l => l.legName === LegName.STOP_LOSS_LEG);
+
+  if (!slLeg) return;
+
+  // If price has moved 3% in favor, trail SL to breakeven
+  const priceMove = ((currentPrice - entryPrice) / entryPrice) * 100;
+
+  if (priceMove >= 3 && slLeg.price < entryPrice) {
+    await client.superOrders.modifySuperOrder(orderId, {
+      dhanClientId: 'your-client-id',
+      orderId: orderId,
+      legName: LegName.STOP_LOSS_LEG,
+      price: entryPrice, // Move to breakeven
+    });
+
+    console.log('Moved stop loss to breakeven');
+  }
+}
+```
+
+## Best Practices
+
+1. **Set realistic targets** based on technical analysis
+2. **Use trailing stop loss** to lock in profits
+3. **Maintain risk-reward ratio** of at least 1:2
+4. **Monitor leg status** regularly for execution updates
+5. **Adjust SL to breakeven** once target is near
+6. **Use appropriate product types** (INTRADAY for day trading)
+7. **Set trailing jump** to ~20-30% of your risk amount
+
+<Callout type="info">
+  Super Orders are ideal for swing trading and intraday trading where you want to automate profit booking and risk management.
+</Callout>
+
+## Advantages of Super Orders
+
+- **Automated risk management**: No need to manually place target/SL orders
+- **Trailing stop loss**: Locks in profits automatically
+- **OCO (One Cancels Other)**: Target or SL execution cancels the other
+- **Reduces monitoring**: Set and forget approach
+- **Emotion-free trading**: Pre-defined exit points
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Regular order placement
+- [Forever Orders](/docs/api-reference/forever-orders) - GTT orders
+- [Portfolio](/docs/api-reference/portfolio) - View positions from super orders

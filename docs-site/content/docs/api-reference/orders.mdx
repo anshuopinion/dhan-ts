@@ -1,0 +1,624 @@
+---
+title: Orders API
+description: Place, modify, cancel, and query orders using the Orders API
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Orders API
+
+The Orders API allows you to place new orders, modify existing orders, cancel orders, and query order status and trade history.
+
+## Accessing the Orders API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+// Access orders through the client
+const orders = client.orders;
+```
+
+## Methods
+
+### Place Order
+
+Place a new order on the exchange.
+
+```typescript
+async placeOrder(orderRequest: OrderRequest): Promise<OrderResponse>
+```
+
+#### Example
+
+```typescript
+import {
+  TransactionType,
+  ExchangeSegmentText,
+  ProductType,
+  OrderType,
+  Validity
+} from 'dhan-ts';
+
+async function placeMarketOrder() {
+  try {
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      transactionType: TransactionType.BUY,
+      exchangeSegment: ExchangeSegmentText.NSE_EQ,
+      productType: ProductType.INTRADAY,
+      orderType: OrderType.MARKET,
+      validity: Validity.DAY,
+      securityId: '1333', // Security ID for the instrument
+      quantity: 1,
+      afterMarketOrder: false,
+    };
+
+    const response = await client.orders.placeOrder(orderRequest);
+    console.log('Order ID:', response.orderId);
+    console.log('Order Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error placing order:', error);
+  }
+}
+```
+
+#### Limit Order Example
+
+```typescript
+async function placeLimitOrder() {
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.CNC,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1850.50,
+    afterMarketOrder: false,
+  };
+
+  const response = await client.orders.placeOrder(orderRequest);
+  return response;
+}
+```
+
+#### Stop Loss Order Example
+
+```typescript
+async function placeStopLossOrder() {
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    transactionType: TransactionType.SELL,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.INTRADAY,
+    orderType: OrderType.STOP_LOSS,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1800.00, // Limit price
+    triggerPrice: 1820.00, // Trigger price
+    afterMarketOrder: false,
+  };
+
+  const response = await client.orders.placeOrder(orderRequest);
+  return response;
+}
+```
+
+### Modify Order
+
+Modify an existing order.
+
+```typescript
+async modifyOrder(
+  orderId: string,
+  modifyRequest: Partial<OrderRequest>
+): Promise<OrderResponse>
+```
+
+#### Example
+
+```typescript
+async function modifyExistingOrder() {
+  try {
+    const orderId = '123456789';
+
+    const modifications = {
+      quantity: 20, // Increase quantity
+      price: 1860.00, // Update limit price
+      orderType: OrderType.LIMIT,
+    };
+
+    const response = await client.orders.modifyOrder(orderId, modifications);
+    console.log('Modified Order ID:', response.orderId);
+    console.log('New Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error modifying order:', error);
+  }
+}
+```
+
+<Callout type="warn">
+  You can only modify pending orders. Orders that are already executed or cancelled cannot be modified.
+</Callout>
+
+### Cancel Order
+
+Cancel a pending order.
+
+```typescript
+async cancelOrder(orderId: string): Promise<OrderResponse>
+```
+
+#### Example
+
+```typescript
+async function cancelExistingOrder() {
+  try {
+    const orderId = '123456789';
+    const response = await client.orders.cancelOrder(orderId);
+
+    console.log('Cancelled Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+  }
+}
+```
+
+### Get All Orders
+
+Retrieve all orders for the day.
+
+```typescript
+async getOrders(): Promise<OrderDetail[]>
+```
+
+#### Example
+
+```typescript
+async function getAllOrders() {
+  try {
+    const orders = await client.orders.getOrders();
+
+    orders.forEach(order => {
+      console.log(`Order ID: ${order.orderId}`);
+      console.log(`Symbol: ${order.tradingSymbol}`);
+      console.log(`Status: ${order.orderStatus}`);
+      console.log(`Quantity: ${order.quantity}`);
+      console.log(`Filled: ${order.filledQty}`);
+      console.log(`Price: ${order.price}`);
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  }
+}
+```
+
+### Get Order by ID
+
+Retrieve details of a specific order by its order ID.
+
+```typescript
+async getOrderById(orderId: string): Promise<OrderDetail>
+```
+
+#### Example
+
+```typescript
+async function getOrderDetails() {
+  try {
+    const orderId = '123456789';
+    const order = await client.orders.getOrderById(orderId);
+
+    console.log('Order Details:');
+    console.log(`Symbol: ${order.tradingSymbol}`);
+    console.log(`Status: ${order.orderStatus}`);
+    console.log(`Transaction Type: ${order.transactionType}`);
+    console.log(`Quantity: ${order.quantity}`);
+    console.log(`Remaining: ${order.remainingQuantity}`);
+    console.log(`Average Price: ${order.averageTradedPrice}`);
+    console.log(`Create Time: ${order.createTime}`);
+    console.log(`Update Time: ${order.updateTime}`);
+  } catch (error) {
+    console.error('Error fetching order:', error);
+  }
+}
+```
+
+### Get Order by Correlation ID
+
+Retrieve order details using your custom correlation ID.
+
+```typescript
+async getOrderByCorrelationId(correlationId: string): Promise<OrderDetail>
+```
+
+#### Example
+
+```typescript
+async function getOrderByCustomId() {
+  try {
+    const correlationId = 'my-custom-order-id-123';
+    const order = await client.orders.getOrderByCorrelationId(correlationId);
+
+    console.log('Order found with correlation ID:', order.orderId);
+  } catch (error) {
+    console.error('Error fetching order:', error);
+  }
+}
+```
+
+<Callout type="info">
+  Correlation IDs are useful for tracking orders in your application. You can set a custom correlation ID when placing an order.
+</Callout>
+
+### Get Trades
+
+Retrieve all executed trades for the day.
+
+```typescript
+async getTrades(): Promise<OrderDetail[]>
+```
+
+#### Example
+
+```typescript
+async function getAllTrades() {
+  try {
+    const trades = await client.orders.getTrades();
+
+    trades.forEach(trade => {
+      console.log(`Order ID: ${trade.orderId}`);
+      console.log(`Symbol: ${trade.tradingSymbol}`);
+      console.log(`Filled Quantity: ${trade.filledQty}`);
+      console.log(`Avg Price: ${trade.averageTradedPrice}`);
+      console.log(`Exchange Time: ${trade.exchangeTime}`);
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+  }
+}
+```
+
+### Get Trades by Order ID
+
+Retrieve trade details for a specific order.
+
+```typescript
+async getTradesByOrderId(orderId: string): Promise<OrderDetail>
+```
+
+#### Example
+
+```typescript
+async function getOrderTrades() {
+  try {
+    const orderId = '123456789';
+    const trade = await client.orders.getTradesByOrderId(orderId);
+
+    console.log(`Filled Quantity: ${trade.filledQty}`);
+    console.log(`Average Price: ${trade.averageTradedPrice}`);
+    console.log(`Remaining: ${trade.remainingQuantity}`);
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+  }
+}
+```
+
+### Place Slice Order
+
+Place orders with large quantities that exceed exchange limits. The order will automatically be split into multiple smaller orders.
+
+```typescript
+async placeSliceOrder(orderRequest: OrderRequest): Promise<OrderResponse[]>
+```
+
+#### Example
+
+```typescript
+async function placeSlicedOrder() {
+  try {
+    // Order with large quantity (e.g., 10000 shares)
+    const orderRequest = {
+      dhanClientId: 'your-client-id',
+      transactionType: TransactionType.BUY,
+      exchangeSegment: ExchangeSegmentText.NSE_EQ,
+      productType: ProductType.INTRADAY,
+      orderType: OrderType.MARKET,
+      validity: Validity.DAY,
+      securityId: '1333',
+      quantity: 10000, // Large quantity
+      afterMarketOrder: false,
+    };
+
+    const responses = await client.orders.placeSliceOrder(orderRequest);
+
+    console.log(`Order sliced into ${responses.length} orders:`);
+    responses.forEach((response, index) => {
+      console.log(`Slice ${index + 1}: Order ID ${response.orderId}`);
+    });
+  } catch (error) {
+    console.error('Error placing slice order:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+### OrderRequest
+
+```typescript
+interface OrderRequest {
+  dhanClientId: string;
+  correlationId?: string; // Custom ID for tracking
+  transactionType: TransactionType; // BUY or SELL
+  exchangeSegment: ExchangeSegmentText;
+  productType: ProductType;
+  orderType: OrderType;
+  validity: Validity;
+  securityId: string;
+  quantity: number;
+  disclosedQuantity?: number;
+  price?: number; // Required for LIMIT orders
+  triggerPrice?: number; // Required for STOP_LOSS orders
+  afterMarketOrder: boolean;
+  amoTime?: AmoTime; // AMO order timing
+  boProfitValue?: number; // Bracket order profit
+  boStopLossValue?: number; // Bracket order stop loss
+}
+```
+
+### OrderResponse
+
+```typescript
+interface OrderResponse {
+  orderId: string;
+  orderStatus: OrderStatus;
+}
+```
+
+### OrderDetail
+
+```typescript
+interface OrderDetail extends OrderRequest {
+  orderId: string;
+  exchangeOrderId: string;
+  orderStatus: OrderStatus;
+  tradingSymbol: string;
+  legName?: LegName;
+  createTime: string;
+  updateTime: string;
+  exchangeTime: string;
+  drvExpiryDate?: string;
+  drvOptionType?: DrvOptionType;
+  drvStrikePrice?: number;
+  omsErrorCode?: string;
+  omsErrorDescription?: string;
+  remainingQuantity: number;
+  averageTradedPrice: number;
+  filledQty: number;
+}
+```
+
+## Enums
+
+### TransactionType
+
+```typescript
+enum TransactionType {
+  BUY = "BUY",
+  SELL = "SELL",
+}
+```
+
+### ProductType
+
+```typescript
+enum ProductType {
+  CNC = "CNC",           // Cash and Carry (Delivery)
+  INTRADAY = "INTRADAY", // Intraday
+  MARGIN = "MARGIN",     // Margin
+  MTF = "MTF",           // Margin Trading Facility
+  CO = "CO",             // Cover Order
+  BO = "BO",             // Bracket Order
+}
+```
+
+### OrderType
+
+```typescript
+enum OrderType {
+  LIMIT = "LIMIT",
+  MARKET = "MARKET",
+  STOP_LOSS = "STOP_LOSS",
+  STOP_LOSS_MARKET = "STOP_LOSS_MARKET",
+}
+```
+
+### OrderStatus
+
+```typescript
+enum OrderStatus {
+  TRANSIT = "TRANSIT",
+  PENDING = "PENDING",
+  REJECTED = "REJECTED",
+  CANCELLED = "CANCELLED",
+  TRADED = "TRADED",
+  EXPIRED = "EXPIRED",
+  PART_TRADED = "PART_TRADED",
+  CLOSED = "CLOSED",
+  TRIGGERED = "TRIGGERED",
+}
+```
+
+### Validity
+
+```typescript
+enum Validity {
+  DAY = "DAY", // Valid for the day
+  IOC = "IOC", // Immediate or Cancel
+}
+```
+
+### ExchangeSegmentText
+
+```typescript
+enum ExchangeSegmentText {
+  NSE_EQ = "NSE_EQ",
+  NSE_FNO = "NSE_FNO",
+  NSE_CURRENCY = "NSE_CURRENCY",
+  BSE_EQ = "BSE_EQ",
+  BSE_FNO = "BSE_FNO",
+  BSE_CURRENCY = "BSE_CURRENCY",
+  MCX_COMM = "MCX_COMM",
+}
+```
+
+## Common Patterns
+
+### Place Order with Correlation ID
+
+Track your orders with custom IDs:
+
+```typescript
+async function placeOrderWithCorrelation() {
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    correlationId: `order-${Date.now()}`, // Custom tracking ID
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.CNC,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1850.00,
+    afterMarketOrder: false,
+  };
+
+  const response = await client.orders.placeOrder(orderRequest);
+
+  // Later, retrieve using correlation ID
+  const order = await client.orders.getOrderByCorrelationId(
+    orderRequest.correlationId!
+  );
+}
+```
+
+### Monitor Order Status
+
+Poll for order status until execution:
+
+```typescript
+async function monitorOrder(orderId: string) {
+  const maxAttempts = 10;
+  let attempt = 0;
+
+  while (attempt < maxAttempts) {
+    const order = await client.orders.getOrderById(orderId);
+
+    console.log(`Status: ${order.orderStatus}`);
+
+    if (
+      order.orderStatus === OrderStatus.TRADED ||
+      order.orderStatus === OrderStatus.REJECTED ||
+      order.orderStatus === OrderStatus.CANCELLED
+    ) {
+      console.log('Order completed');
+      return order;
+    }
+
+    // Wait 2 seconds before checking again
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    attempt++;
+  }
+
+  console.log('Order monitoring timed out');
+}
+```
+
+<Callout type="info">
+  For real-time order updates, use the [Live Order Update Feed](/docs/feeds/live-order-update) instead of polling.
+</Callout>
+
+### Bracket Order
+
+Place orders with target and stop loss:
+
+```typescript
+async function placeBracketOrder() {
+  const orderRequest = {
+    dhanClientId: 'your-client-id',
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.BO,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1850.00,
+    boProfitValue: 20.00, // Target profit per share
+    boStopLossValue: 10.00, // Stop loss per share
+    afterMarketOrder: false,
+  };
+
+  const response = await client.orders.placeOrder(orderRequest);
+  return response;
+}
+```
+
+## Error Handling
+
+```typescript
+async function placeOrderWithErrorHandling() {
+  try {
+    const response = await client.orders.placeOrder(orderRequest);
+    return response;
+  } catch (error: any) {
+    if (error.code === 'DH-906') {
+      console.error('Order error:', error.message);
+      // Handle order-specific errors
+    } else if (error.code === 'DH-905') {
+      console.error('Input validation error:', error.message);
+      // Handle validation errors
+    } else if (error.code === 'DH-904') {
+      console.error('Rate limit exceeded');
+      // Implement backoff strategy
+    } else {
+      console.error('Unexpected error:', error);
+    }
+    throw error;
+  }
+}
+```
+
+## Best Practices
+
+1. **Always set correlation IDs** for tracking orders in your application
+2. **Validate inputs** before placing orders to avoid API errors
+3. **Use appropriate product types** (CNC for delivery, INTRADAY for intraday)
+4. **Handle order rejections** gracefully with proper error messages
+5. **Monitor order status** using WebSocket feeds for real-time updates
+6. **Use slice orders** for large quantities to avoid exchange rejections
+7. **Set realistic prices** for limit orders to increase fill probability
+8. **Implement retry logic** with exponential backoff for transient errors
+
+## Related APIs
+
+- [Portfolio API](/docs/api-reference/portfolio) - View positions after orders are executed
+- [Funds API](/docs/api-reference/funds) - Check available balance before placing orders
+- [Live Order Update Feed](/docs/feeds/live-order-update) - Real-time order status updates
+- [Super Orders](/docs/api-reference/super-orders) - Advanced orders with targets and trailing stop loss
+- [Forever Orders](/docs/api-reference/forever-orders) - GTT (Good Till Triggered) orders

@@ -1,0 +1,96 @@
+---
+title: Expired Option Data API
+description: Access historical options data including OHLC, IV, OI, and strike prices
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Expired Option Data API
+
+The Expired Option Data API provides historical data for expired options, useful for backtesting options strategies and analyzing historical IV, OI patterns, and price movements.
+
+## Accessing the API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const expiredOptionData = client.expiredOptionData;
+```
+
+## Get Rolling Option Data
+
+Fetch historical option data for expired contracts.
+
+```typescript
+async getRollingOptionData(
+  request: ExpiredOptionDataRequest
+): Promise<ExpiredOptionDataResponse>
+```
+
+### Example
+
+```typescript
+import {
+  ExchangeSegmentText,
+  InstrumentToken,
+  ExpiryFlag,
+  DrvOptionType,
+  StrikeType
+} from 'dhan-ts';
+
+async function getHistoricalOptionsData() {
+  const request = {
+    exchangeSegment: ExchangeSegmentText.NSE_FNO,
+    interval: '1d',
+    securityId: '13',  // Nifty
+    instrument: InstrumentToken.OPTIDX,
+    expiryFlag: ExpiryFlag.WEEK,
+    expiryCode: 0,  // Current weekly
+    strike: StrikeType.ATM,
+    drvOptionType: DrvOptionType.CALL,
+    requiredData: ['open', 'high', 'low', 'close', 'iv', 'oi', 'volume'],
+    fromDate: '2024-01-01',
+    toDate: '2024-01-31',
+  };
+
+  const data = await client.expiredOptionData.getRollingOptionData(request);
+
+  console.log('Call Option Data:', data.data.ce);
+  console.log('Put Option Data:', data.data.pe);
+}
+```
+
+## TypeScript Types
+
+### StrikeType Enum
+
+```typescript
+enum StrikeType {
+  ATM = "ATM",
+  ATM_PLUS_1 = "ATM+1",
+  ATM_PLUS_2 = "ATM+2",
+  ATM_MINUS_1 = "ATM-1",
+  ATM_MINUS_2 = "ATM-2",
+  // ... up to ATM±10
+}
+```
+
+### ExpiryFlag Enum
+
+```typescript
+enum ExpiryFlag {
+  WEEK = "WEEK",
+  MONTH = "MONTH",
+}
+```
+
+## Related APIs
+
+- [Option Chain](/docs/api-reference/option-chain) - Current option chain data
+- [Market Data](/docs/api-reference/market-data) - Historical price data

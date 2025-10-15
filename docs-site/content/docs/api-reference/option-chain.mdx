@@ -1,0 +1,438 @@
+---
+title: Option Chain API
+description: Get option chain data with Greeks, IV, and market depth
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Option Chain API
+
+The Option Chain API provides access to options data including Greeks (Delta, Theta, Gamma, Vega), implied volatility, and market depth for all strikes of an underlying.
+
+## Accessing the Option Chain API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const optionChain = client.optionChain;
+```
+
+## Methods
+
+### Get Option Chain
+
+Fetch complete option chain for an underlying security.
+
+```typescript
+async getOptionChain(
+  request: OptionChainRequest
+): Promise<OptionChainResponse>
+```
+
+#### Example
+
+```typescript
+async function getOptionChainData() {
+  try {
+    const request = {
+      UnderlyingScrip: 13, // Nifty 50
+      UnderlyingSeg: "IDX_I",
+      Expiry: "2024-01-25", // Weekly expiry
+    };
+
+    const optionChain = await client.optionChain.getOptionChain(request);
+
+    console.log('Underlying LTP:', optionChain.data.last_price);
+
+    // Iterate through all strikes
+    Object.entries(optionChain.data.oc).forEach(([strike, data]) => {
+      console.log(`\nStrike: ${strike}`);
+
+      if (data.ce) {
+        console.log('CALL:');
+        console.log(`  LTP: ${data.ce.last_price}`);
+        console.log(`  IV: ${data.ce.implied_volatility}`);
+        console.log(`  OI: ${data.ce.oi}`);
+        console.log(`  Delta: ${data.ce.greeks.delta}`);
+        console.log(`  Theta: ${data.ce.greeks.theta}`);
+        console.log(`  Gamma: ${data.ce.greeks.gamma}`);
+        console.log(`  Vega: ${data.ce.greeks.vega}`);
+      }
+
+      if (data.pe) {
+        console.log('PUT:');
+        console.log(`  LTP: ${data.pe.last_price}`);
+        console.log(`  IV: ${data.pe.implied_volatility}`);
+        console.log(`  OI: ${data.pe.oi}`);
+        console.log(`  Delta: ${data.pe.greeks.delta}`);
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching option chain:', error);
+  }
+}
+```
+
+### Get Expiry List
+
+Fetch available expiry dates for an underlying.
+
+```typescript
+async getExpiryList(
+  request: ExpiryListRequest
+): Promise<ExpiryListResponse>
+```
+
+#### Example
+
+```typescript
+async function getAvailableExpiries() {
+  try {
+    const request = {
+      UnderlyingScrip: 13, // Nifty 50
+      UnderlyingSeg: "IDX_I",
+    };
+
+    const expiries = await client.optionChain.getExpiryList(request);
+
+    console.log('Available Expiries:');
+    expiries.data.forEach((expiry, index) => {
+      console.log(`${index + 1}. ${expiry}`);
+    });
+
+    return expiries.data;
+  } catch (error) {
+    console.error('Error fetching expiries:', error);
+    return [];
+  }
+}
+```
+
+## TypeScript Types
+
+### OptionChainRequest
+
+```typescript
+interface OptionChainRequest {
+  UnderlyingScrip: number;  // Underlying security ID
+  UnderlyingSeg: string;    // Segment (IDX_I for index)
+  Expiry: string;           // Expiry date (YYYY-MM-DD)
+}
+```
+
+### OptionChainResponse
+
+```typescript
+interface OptionChainResponse {
+  data: {
+    last_price: number;  // Underlying last price
+    oc: {
+      [strike: string]: StrikeData;
+    };
+  };
+}
+
+interface StrikeData {
+  ce?: OptionData;  // Call option data
+  pe?: OptionData;  // Put option data
+}
+
+interface OptionData {
+  greeks: OptionGreeks;
+  implied_volatility: number;
+  last_price: number;
+  oi: number;                  // Open interest
+  previous_close_price: number;
+  previous_oi: number;
+  previous_volume: number;
+  top_ask_price: number;
+  top_ask_quantity: number;
+  top_bid_price: number;
+  top_bid_quantity: number;
+  volume: number;
+}
+
+interface OptionGreeks {
+  delta: number;  // Rate of change of option price wrt underlying
+  theta: number;  // Time decay
+  gamma: number;  // Rate of change of delta
+  vega: number;   // Sensitivity to volatility
+}
+```
+
+## Common Patterns
+
+### Find ATM Strike
+
+```typescript
+async function findATMStrike() {
+  const request = {
+    UnderlyingScrip: 13,
+    UnderlyingSeg: "IDX_I",
+    Expiry: "2024-01-25",
+  };
+
+  const optionChain = await client.optionChain.getOptionChain(request);
+  const underlyingPrice = optionChain.data.last_price;
+
+  const strikes = Object.keys(optionChain.data.oc).map(Number);
+
+  // Find closest strike to current price
+  const atmStrike = strikes.reduce((prev, curr) =>
+    Math.abs(curr - underlyingPrice) < Math.abs(prev - underlyingPrice)
+      ? curr
+      : prev
+  );
+
+  console.log(`Underlying: ${underlyingPrice}`);
+  console.log(`ATM Strike: ${atmStrike}`);
+
+  return atmStrike;
+}
+```
+
+### Analyze OI Changes
+
+```typescript
+async function analyzeOIChanges() {
+  const request = {
+    UnderlyingScrip: 13,
+    UnderlyingSeg: "IDX_I",
+    Expiry: "2024-01-25",
+  };
+
+  const optionChain = await client.optionChain.getOptionChain(request);
+
+  const oiAnalysis: Array<{
+    strike: number;
+    type: 'CE' | 'PE';
+    oi: number;
+    oiChange: number;
+  }> = [];
+
+  Object.entries(optionChain.data.oc).forEach(([strike, data]) => {
+    if (data.ce) {
+      oiAnalysis.push({
+        strike: Number(strike),
+        type: 'CE',
+        oi: data.ce.oi,
+        oiChange: data.ce.oi - data.ce.previous_oi,
+      });
+    }
+
+    if (data.pe) {
+      oiAnalysis.push({
+        strike: Number(strike),
+        type: 'PE',
+        oi: data.pe.oi,
+        oiChange: data.pe.oi - data.pe.previous_oi,
+      });
+    }
+  });
+
+  // Sort by OI change
+  oiAnalysis.sort((a, b) => Math.abs(b.oiChange) - Math.abs(a.oiChange));
+
+  console.log('Top OI Changes:');
+  oiAnalysis.slice(0, 10).forEach(item => {
+    console.log(`${item.strike} ${item.type}: ${item.oiChange > 0 ? '+' : ''}${item.oiChange}`);
+  });
+
+  return oiAnalysis;
+}
+```
+
+### Find High IV Options
+
+```typescript
+async function findHighIVOptions() {
+  const request = {
+    UnderlyingScrip: 13,
+    UnderlyingSeg: "IDX_I",
+    Expiry: "2024-01-25",
+  };
+
+  const optionChain = await client.optionChain.getOptionChain(request);
+
+  const highIVOptions: Array<{
+    strike: number;
+    type: 'CE' | 'PE';
+    iv: number;
+    ltp: number;
+  }> = [];
+
+  Object.entries(optionChain.data.oc).forEach(([strike, data]) => {
+    if (data.ce && data.ce.implied_volatility > 20) {
+      highIVOptions.push({
+        strike: Number(strike),
+        type: 'CE',
+        iv: data.ce.implied_volatility,
+        ltp: data.ce.last_price,
+      });
+    }
+
+    if (data.pe && data.pe.implied_volatility > 20) {
+      highIVOptions.push({
+        strike: Number(strike),
+        type: 'PE',
+        iv: data.pe.implied_volatility,
+        ltp: data.pe.last_price,
+      });
+    }
+  });
+
+  highIVOptions.sort((a, b) => b.iv - a.iv);
+
+  console.log('High IV Options (>20%):');
+  highIVOptions.slice(0, 10).forEach(opt => {
+    console.log(`${opt.strike} ${opt.type}: IV ${opt.iv.toFixed(2)}%, LTP ${opt.ltp}`);
+  });
+
+  return highIVOptions;
+}
+```
+
+### Calculate Put-Call Ratio
+
+```typescript
+async function calculatePCR() {
+  const request = {
+    UnderlyingScrip: 13,
+    UnderlyingSeg: "IDX_I",
+    Expiry: "2024-01-25",
+  };
+
+  const optionChain = await client.optionChain.getOptionChain(request);
+
+  let totalCallOI = 0;
+  let totalPutOI = 0;
+
+  Object.values(optionChain.data.oc).forEach(data => {
+    if (data.ce) totalCallOI += data.ce.oi;
+    if (data.pe) totalPutOI += data.pe.oi;
+  });
+
+  const pcr = totalPutOI / totalCallOI;
+
+  console.log(`Total Call OI: ${totalCallOI}`);
+  console.log(`Total Put OI: ${totalPutOI}`);
+  console.log(`PCR: ${pcr.toFixed(2)}`);
+
+  if (pcr > 1.3) {
+    console.log('Market Sentiment: Bullish');
+  } else if (pcr < 0.7) {
+    console.log('Market Sentiment: Bearish');
+  } else {
+    console.log('Market Sentiment: Neutral');
+  }
+
+  return pcr;
+}
+```
+
+### Build Option Strategy
+
+```typescript
+async function buildIronCondor() {
+  const request = {
+    UnderlyingScrip: 13,
+    UnderlyingSeg: "IDX_I",
+    Expiry: "2024-01-25",
+  };
+
+  const optionChain = await client.optionChain.getOptionChain(request);
+  const underlyingPrice = optionChain.data.last_price;
+
+  // Iron Condor: Sell closer strikes, buy further strikes
+  const sellCallStrike = Math.ceil(underlyingPrice / 50) * 50 + 100;
+  const buyCallStrike = sellCallStrike + 50;
+  const sellPutStrike = Math.floor(underlyingPrice / 50) * 50 - 100;
+  const buyPutStrike = sellPutStrike - 50;
+
+  const strategy = {
+    underlying: underlyingPrice,
+    legs: [
+      {
+        action: 'SELL',
+        type: 'CE',
+        strike: sellCallStrike,
+        premium: optionChain.data.oc[sellCallStrike]?.ce?.last_price || 0,
+      },
+      {
+        action: 'BUY',
+        type: 'CE',
+        strike: buyCallStrike,
+        premium: optionChain.data.oc[buyCallStrike]?.ce?.last_price || 0,
+      },
+      {
+        action: 'SELL',
+        type: 'PE',
+        strike: sellPutStrike,
+        premium: optionChain.data.oc[sellPutStrike]?.pe?.last_price || 0,
+      },
+      {
+        action: 'BUY',
+        type: 'PE',
+        strike: buyPutStrike,
+        premium: optionChain.data.oc[buyPutStrike]?.pe?.last_price || 0,
+      },
+    ],
+  };
+
+  const netCredit = strategy.legs.reduce((sum, leg) => {
+    return sum + (leg.action === 'SELL' ? leg.premium : -leg.premium);
+  }, 0);
+
+  console.log('Iron Condor Strategy:');
+  strategy.legs.forEach(leg => {
+    console.log(`${leg.action} ${leg.strike} ${leg.type} @ ₹${leg.premium}`);
+  });
+  console.log(`Net Credit: ₹${netCredit.toFixed(2)}`);
+
+  return strategy;
+}
+```
+
+## Understanding Greeks
+
+- **Delta**: How much option price changes for ₹1 change in underlying
+  - Call Delta: 0 to 1 (ATM ~0.5)
+  - Put Delta: -1 to 0 (ATM ~-0.5)
+
+- **Theta**: Daily time decay in option premium
+  - Always negative for long options
+  - Accelerates as expiry approaches
+
+- **Gamma**: Rate of change of Delta
+  - Highest at ATM
+  - Important for delta hedging
+
+- **Vega**: Sensitivity to 1% change in IV
+  - Long options benefit from increasing IV
+  - Short options benefit from decreasing IV
+
+## Best Practices
+
+1. **Monitor IV percentile** before selling options
+2. **Analyze OI changes** for support/resistance levels
+3. **Use Greeks** for position sizing and hedging
+4. **Check multiple expiries** for best risk-reward
+5. **Calculate PCR** for market sentiment
+6. **Track max pain** for monthly expiry
+7. **Use bid-ask spread** to gauge liquidity
+
+<Callout type="warn">
+  Option trading involves significant risk. Always use stop losses and proper position sizing.
+</Callout>
+
+## Related APIs
+
+- [Market Data](/docs/api-reference/market-data) - Get underlying prices
+- [Expired Option Data](/docs/api-reference/expired-option-data) - Historical options data
+- [Orders API](/docs/api-reference/orders) - Place option orders

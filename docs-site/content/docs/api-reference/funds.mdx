@@ -1,0 +1,324 @@
+---
+title: Funds API
+description: Check fund limits and calculate margin requirements
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Funds API
+
+The Funds API allows you to check your available balance and calculate margin requirements for orders before placing them.
+
+## Accessing the Funds API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const funds = client.funds;
+```
+
+## Methods
+
+### Get Fund Limit
+
+Retrieve your current fund limit and available balance.
+
+```typescript
+async getFundLimit(): Promise<FundLimitResponse>
+```
+
+#### Example
+
+```typescript
+async function checkFunds() {
+  try {
+    const funds = await client.funds.getFundLimit();
+
+    console.log('Available Balance:', funds.availabelBalance);
+    console.log('SOD Limit:', funds.sodLimit);
+    console.log('Collateral Amount:', funds.collateralAmount);
+    console.log('Receivable Amount:', funds.receiveableAmount);
+    console.log('Utilized Amount:', funds.utilizedAmount);
+    console.log('Blocked Payout:', funds.blockedPayoutAmount);
+    console.log('Withdrawable Balance:', funds.withdrawableBalance);
+  } catch (error) {
+    console.error('Error fetching funds:', error);
+  }
+}
+```
+
+### Calculate Margin
+
+Calculate the margin requirement for an order before placing it.
+
+```typescript
+async calculateMargin(
+  request: MarginCalculatorRequest
+): Promise<MarginCalculatorResponse>
+```
+
+#### Example
+
+```typescript
+import {
+  ExchangeSegment,
+  TransactionType,
+  ProductType
+} from 'dhan-ts';
+
+async function checkMarginRequirement() {
+  try {
+    const marginRequest = {
+      dhanClientId: 'your-client-id',
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      transactionType: TransactionType.BUY,
+      productType: ProductType.INTRADAY,
+      securityId: '1333',
+      quantity: 10,
+      price: 1850.00,
+    };
+
+    const margin = await client.funds.calculateMargin(marginRequest);
+
+    console.log('Total Margin Required:', margin.totalMargin);
+    console.log('SPAN Margin:', margin.spanMargin);
+    console.log('Exposure Margin:', margin.exposureMargin);
+    console.log('Available Balance:', margin.availableBalance);
+    console.log('Insufficient Balance:', margin.insufficientBalance);
+    console.log('Brokerage:', margin.brokerage);
+    console.log('Leverage:', margin.leverage);
+  } catch (error) {
+    console.error('Error calculating margin:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+### FundLimitResponse
+
+```typescript
+interface FundLimitResponse {
+  dhanClientId: string;
+  availabelBalance: number;      // Available for trading
+  sodLimit: number;              // Start of day limit
+  collateralAmount: number;      // Collateral provided
+  receiveableAmount: number;     // Amount to be received
+  utilizedAmount: number;        // Currently utilized
+  blockedPayoutAmount: number;   // Blocked for payout
+  withdrawableBalance: number;   // Can be withdrawn
+}
+```
+
+### MarginCalculatorRequest
+
+```typescript
+interface MarginCalculatorRequest {
+  dhanClientId: string;
+  exchangeSegment: ExchangeSegment;
+  transactionType: TransactionType;
+  quantity: number;
+  productType: ProductType;
+  securityId: string;
+  price: number;
+  triggerPrice?: number; // For stop loss orders
+}
+```
+
+### MarginCalculatorResponse
+
+```typescript
+interface MarginCalculatorResponse {
+  totalMargin: number;
+  spanMargin: number;
+  exposureMargin: number;
+  availableBalance: number;
+  variableMargin: number;
+  insufficientBalance: number;
+  brokerage: number;
+  leverage: string;
+}
+```
+
+## Common Patterns
+
+### Check Before Placing Order
+
+Always check if you have sufficient funds before placing an order:
+
+```typescript
+async function placeOrderWithFundCheck() {
+  // First, calculate margin required
+  const marginRequest = {
+    dhanClientId: 'your-client-id',
+    exchangeSegment: ExchangeSegment.NSE_EQ,
+    transactionType: TransactionType.BUY,
+    productType: ProductType.INTRADAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1850.00,
+  };
+
+  const margin = await client.funds.calculateMargin(marginRequest);
+
+  if (margin.insufficientBalance > 0) {
+    console.log('Insufficient funds!');
+    console.log(`Need additional: ₹${margin.insufficientBalance}`);
+    return;
+  }
+
+  // Proceed with order placement
+  const orderResponse = await client.orders.placeOrder({
+    dhanClientId: 'your-client-id',
+    transactionType: TransactionType.BUY,
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    productType: ProductType.INTRADAY,
+    orderType: OrderType.LIMIT,
+    validity: Validity.DAY,
+    securityId: '1333',
+    quantity: 10,
+    price: 1850.00,
+    afterMarketOrder: false,
+  });
+
+  console.log('Order placed:', orderResponse.orderId);
+}
+```
+
+### Calculate Maximum Quantity
+
+Determine the maximum quantity you can buy with available funds:
+
+```typescript
+async function calculateMaxQuantity(
+  securityId: string,
+  price: number,
+  productType: ProductType
+) {
+  const funds = await client.funds.getFundLimit();
+  const availableBalance = funds.availabelBalance;
+
+  // Binary search for maximum quantity
+  let low = 1;
+  let high = 10000;
+  let maxQty = 0;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+
+    const margin = await client.funds.calculateMargin({
+      dhanClientId: 'your-client-id',
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      transactionType: TransactionType.BUY,
+      productType: productType,
+      securityId: securityId,
+      quantity: mid,
+      price: price,
+    });
+
+    if (margin.totalMargin <= availableBalance) {
+      maxQty = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  console.log(`Maximum quantity you can buy: ${maxQty}`);
+  return maxQty;
+}
+```
+
+### Monitor Fund Usage
+
+Track how much of your funds are being utilized:
+
+```typescript
+async function monitorFundUsage() {
+  const funds = await client.funds.getFundLimit();
+
+  const utilizationPercent =
+    (funds.utilizedAmount / funds.sodLimit) * 100;
+
+  console.log(`Fund Utilization: ${utilizationPercent.toFixed(2)}%`);
+
+  if (utilizationPercent > 80) {
+    console.warn('Warning: High fund utilization!');
+  }
+
+  // Available for new trades
+  const available = funds.availabelBalance - funds.blockedPayoutAmount;
+  console.log(`Available for trading: ₹${available}`);
+}
+```
+
+### Compare Margin Across Product Types
+
+```typescript
+async function compareMargins(
+  securityId: string,
+  quantity: number,
+  price: number
+) {
+  const productTypes = [
+    ProductType.CNC,
+    ProductType.INTRADAY,
+    ProductType.MARGIN,
+  ];
+
+  console.log('Margin comparison:');
+
+  for (const productType of productTypes) {
+    const margin = await client.funds.calculateMargin({
+      dhanClientId: 'your-client-id',
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      transactionType: TransactionType.BUY,
+      productType: productType,
+      securityId: securityId,
+      quantity: quantity,
+      price: price,
+    });
+
+    console.log(`${productType}:`);
+    console.log(`  Total Margin: ₹${margin.totalMargin}`);
+    console.log(`  Leverage: ${margin.leverage}`);
+    console.log(`  Brokerage: ₹${margin.brokerage}`);
+  }
+}
+```
+
+## Understanding Fund Fields
+
+- **sodLimit**: Start of day available limit
+- **availabelBalance**: Current available balance for trading
+- **collateralAmount**: Value of securities pledged as collateral
+- **receiveableAmount**: Funds that will be credited (e.g., from sales)
+- **utilizedAmount**: Amount currently blocked in orders/positions
+- **blockedPayoutAmount**: Amount blocked for withdrawal/payout
+- **withdrawableBalance**: Amount that can be withdrawn from account
+
+## Best Practices
+
+1. **Always check funds** before placing orders to avoid rejections
+2. **Use margin calculator** to understand capital requirements
+3. **Monitor fund utilization** to avoid over-leveraging
+4. **Account for brokerage** when calculating total costs
+5. **Track receivable amount** from executed sell orders
+6. **Keep buffer funds** for volatility and margin calls
+7. **Different product types** require different margins - choose wisely
+
+<Callout type="warn">
+  SPAN and exposure margins are calculated by the exchange and can change based on market volatility. Always check before placing large orders.
+</Callout>
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Place orders after confirming funds
+- [Portfolio API](/docs/api-reference/portfolio) - View positions that utilize funds
+- [Market Data](/docs/api-reference/market-data) - Get current prices for margin calculation

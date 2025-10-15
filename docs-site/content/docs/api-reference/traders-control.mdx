@@ -1,0 +1,190 @@
+---
+title: Traders Control API
+description: Emergency kill switch to cancel all active orders
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Traders Control API
+
+The Traders Control API provides a kill switch functionality to immediately cancel all active orders and prevent new order placement. This is useful in emergency situations or to quickly exit all positions.
+
+## Accessing the Traders Control API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const tradersControl = client.tradersControl;
+```
+
+## Set Kill Switch
+
+Activate or deactivate the kill switch.
+
+```typescript
+async setKillSwitch(
+  status: KillSwitchStatus
+): Promise<KillSwitchResponse>
+```
+
+### Example
+
+```typescript
+import { KillSwitchStatus } from 'dhan-ts';
+
+async function activateKillSwitch() {
+  try {
+    const response = await client.tradersControl.setKillSwitch(
+      KillSwitchStatus.ACTIVATE
+    );
+
+    console.log('Kill Switch Status:', response.killSwitchStatus);
+    console.log('Client ID:', response.dhanClientId);
+  } catch (error) {
+    console.error('Error activating kill switch:', error);
+  }
+}
+
+async function deactivateKillSwitch() {
+  try {
+    const response = await client.tradersControl.setKillSwitch(
+      KillSwitchStatus.DEACTIVATE
+    );
+
+    console.log('Kill Switch deactivated');
+  } catch (error) {
+    console.error('Error deactivating kill switch:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+### KillSwitchStatus Enum
+
+```typescript
+enum KillSwitchStatus {
+  ACTIVATE = "ACTIVATE",
+  DEACTIVATE = "DEACTIVATE",
+}
+```
+
+### KillSwitchResponse
+
+```typescript
+interface KillSwitchResponse {
+  dhanClientId: string;
+  killSwitchStatus: string;
+}
+```
+
+## What Happens When Kill Switch is Activated?
+
+1. **All pending orders are cancelled** immediately
+2. **No new orders can be placed** until deactivated
+3. **Existing positions remain open** - only new orders are blocked
+4. **Market/Limit orders are rejected** with kill switch error
+
+<Callout type="warn">
+  The kill switch does NOT close existing positions. It only cancels pending orders and blocks new orders. To close positions, you must manually place exit orders after deactivating the kill switch.
+</Callout>
+
+## Use Cases
+
+### Emergency Stop
+
+```typescript
+async function emergencyStop() {
+  console.log('EMERGENCY: Activating kill switch...');
+
+  await client.tradersControl.setKillSwitch(
+    KillSwitchStatus.ACTIVATE
+  );
+
+  console.log('All orders cancelled. No new orders allowed.');
+}
+```
+
+### End of Day Cleanup
+
+```typescript
+async function endOfDayCleanup() {
+  // Get all pending orders
+  const orders = await client.orders.getOrders();
+
+  const pendingOrders = orders.filter(
+    o => o.orderStatus === 'PENDING'
+  );
+
+  if (pendingOrders.length > 5) {
+    console.log('Too many pending orders. Activating kill switch...');
+
+    await client.tradersControl.setKillSwitch(
+      KillSwitchStatus.ACTIVATE
+    );
+
+    // Wait a moment
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Deactivate
+    await client.tradersControl.setKillSwitch(
+      KillSwitchStatus.DEACTIVATE
+    );
+
+    console.log('Kill switch cycle completed');
+  }
+}
+```
+
+### Loss Limit Protection
+
+```typescript
+async function lossLimitProtection() {
+  const positions = await client.portfolio.getPositions();
+
+  const totalUnrealizedPnL = positions.reduce(
+    (sum, pos) => sum + pos.unrealizedProfit,
+    0
+  );
+
+  const LOSS_LIMIT = -10000; // ₹10,000 loss limit
+
+  if (totalUnrealizedPnL < LOSS_LIMIT) {
+    console.log('Loss limit breached! Activating kill switch...');
+
+    await client.tradersControl.setKillSwitch(
+      KillSwitchStatus.ACTIVATE
+    );
+
+    // Alert user
+    console.log('ALERT: Kill switch activated due to losses');
+    console.log(`Current P&L: ₹${totalUnrealizedPnL}`);
+  }
+}
+```
+
+## Best Practices
+
+1. **Use in genuine emergencies** only
+2. **Deactivate after emergency** is resolved
+3. **Implement with caution** - can disrupt trading
+4. **Add confirmation** before activating
+5. **Log kill switch events** for audit trail
+6. **Test in sandbox** first
+7. **Combine with alerts** for better risk management
+
+<Callout type="info">
+  The kill switch is a powerful tool for risk management. Use it responsibly and always deactivate it once the emergency is resolved.
+</Callout>
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Manage individual orders
+- [Portfolio API](/docs/api-reference/portfolio) - View positions
+- [Funds API](/docs/api-reference/funds) - Check available balance

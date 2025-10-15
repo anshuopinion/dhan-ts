@@ -1,0 +1,296 @@
+---
+title: Portfolio API
+description: View holdings, positions, and convert positions between product types
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Portfolio API
+
+The Portfolio API provides access to your holdings, positions, and allows you to convert positions between different product types.
+
+## Accessing the Portfolio API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const portfolio = client.portfolio;
+```
+
+## Methods
+
+### Get Holdings
+
+Retrieve all your holdings (long-term investments).
+
+```typescript
+async getHoldings(): Promise<HoldingsResponse[]>
+```
+
+#### Example
+
+```typescript
+async function viewHoldings() {
+  try {
+    const holdings = await client.portfolio.getHoldings();
+
+    holdings.forEach(holding => {
+      console.log(`Symbol: ${holding.tradingSymbol}`);
+      console.log(`Exchange: ${holding.exchange}`);
+      console.log(`Total Quantity: ${holding.totalQty}`);
+      console.log(`Available Quantity: ${holding.availableQty}`);
+      console.log(`Average Cost: ₹${holding.avgCostPrice}`);
+      console.log(`ISIN: ${holding.isin}`);
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching holdings:', error);
+  }
+}
+```
+
+### Get Positions
+
+Retrieve all open positions for the day.
+
+```typescript
+async getPositions(): Promise<PositionResponse[]>
+```
+
+#### Example
+
+```typescript
+async function viewPositions() {
+  try {
+    const positions = await client.portfolio.getPositions();
+
+    positions.forEach(position => {
+      console.log(`Symbol: ${position.tradingSymbol}`);
+      console.log(`Position Type: ${position.positionType}`);
+      console.log(`Product Type: ${position.productType}`);
+      console.log(`Net Quantity: ${position.netQty}`);
+      console.log(`Buy Avg: ₹${position.buyAvg}`);
+      console.log(`Sell Avg: ₹${position.sellAvg}`);
+      console.log(`Realized P&L: ₹${position.realizedProfit}`);
+      console.log(`Unrealized P&L: ₹${position.unrealizedProfit}`);
+      console.log('---');
+    });
+  } catch (error) {
+    console.error('Error fetching positions:', error);
+  }
+}
+```
+
+### Convert Position
+
+Convert a position from one product type to another (e.g., INTRADAY to CNC).
+
+```typescript
+async convertPosition(request: ConvertPositionRequest): Promise<OrderResponse>
+```
+
+#### Example
+
+```typescript
+import { ProductType, PositionType, ExchangeSegment } from 'dhan-ts';
+
+async function convertIntradayToDelivery() {
+  try {
+    const convertRequest = {
+      dhanClientId: 'your-client-id',
+      fromProductType: ProductType.INTRADAY,
+      toProductType: ProductType.CNC,
+      exchangeSegment: ExchangeSegment.NSE_EQ,
+      positionType: PositionType.LONG,
+      securityId: '1333',
+      tradingSymbol: 'RELIANCE',
+      convertQty: 10,
+    };
+
+    const response = await client.portfolio.convertPosition(convertRequest);
+    console.log('Conversion Order ID:', response.orderId);
+    console.log('Status:', response.orderStatus);
+  } catch (error) {
+    console.error('Error converting position:', error);
+  }
+}
+```
+
+<Callout type="info">
+  Position conversion must be done before market close. You can convert INTRADAY positions to CNC (delivery) to avoid square-off.
+</Callout>
+
+## TypeScript Types
+
+### HoldingsResponse
+
+```typescript
+interface HoldingsResponse {
+  exchange: string;
+  tradingSymbol: string;
+  securityId: string;
+  isin: string;
+  totalQty: number;
+  dpQty: number;            // Demat quantity
+  t1Qty: number;            // T+1 quantity
+  availableQty: number;     // Available for trading
+  collateralQty: number;    // Pledged as collateral
+  avgCostPrice: number;
+}
+```
+
+### PositionResponse
+
+```typescript
+interface PositionResponse {
+  dhanClientId: string;
+  tradingSymbol: string;
+  securityId: string;
+  positionType: PositionType;
+  exchangeSegment: ExchangeSegment;
+  productType: ProductType;
+  buyAvg: number;
+  buyQty: number;
+  sellAvg: number;
+  sellQty: number;
+  netQty: number;
+  realizedProfit: number;
+  unrealizedProfit: number;
+  rbiReferenceRate: number;
+  multiplier: number;
+  carryForwardBuyQty: number;
+  carryForwardSellQty: number;
+  carryForwardBuyValue: number;
+  carryForwardSellValue: number;
+  dayBuyQty: number;
+  daySellQty: number;
+  dayBuyValue: number;
+  daySellValue: number;
+  drvExpiryDate?: string;
+  drvOptionType?: DrvOptionType;
+  drvStrikePrice?: number;
+  crossCurrency: boolean;
+}
+```
+
+### ConvertPositionRequest
+
+```typescript
+interface ConvertPositionRequest {
+  dhanClientId: string;
+  fromProductType: ProductType;
+  toProductType: ProductType;
+  exchangeSegment: ExchangeSegment;
+  positionType: PositionType;
+  securityId: string;
+  tradingSymbol: string;
+  convertQty: number;
+}
+```
+
+## Enums
+
+### PositionType
+
+```typescript
+enum PositionType {
+  LONG = "LONG",
+  SHORT = "SHORT",
+  CLOSED = "CLOSED",
+}
+```
+
+## Common Patterns
+
+### Calculate Total P&L
+
+```typescript
+async function calculateTotalPnL() {
+  const positions = await client.portfolio.getPositions();
+
+  const totalRealized = positions.reduce(
+    (sum, pos) => sum + pos.realizedProfit,
+    0
+  );
+
+  const totalUnrealized = positions.reduce(
+    (sum, pos) => sum + pos.unrealizedProfit,
+    0
+  );
+
+  console.log(`Total Realized P&L: ₹${totalRealized}`);
+  console.log(`Total Unrealized P&L: ₹${totalUnrealized}`);
+  console.log(`Total P&L: ₹${totalRealized + totalUnrealized}`);
+}
+```
+
+### Get Holdings Value
+
+```typescript
+async function calculateHoldingsValue() {
+  const holdings = await client.portfolio.getHoldings();
+
+  const totalInvestment = holdings.reduce(
+    (sum, holding) => sum + (holding.avgCostPrice * holding.totalQty),
+    0
+  );
+
+  console.log(`Total Investment: ₹${totalInvestment.toFixed(2)}`);
+}
+```
+
+### Auto-convert Intraday Positions
+
+```typescript
+async function autoConvertIntradayPositions() {
+  const positions = await client.portfolio.getPositions();
+
+  const intradayLongPositions = positions.filter(
+    pos =>
+      pos.productType === ProductType.INTRADAY &&
+      pos.positionType === PositionType.LONG &&
+      pos.netQty > 0
+  );
+
+  for (const position of intradayLongPositions) {
+    try {
+      const response = await client.portfolio.convertPosition({
+        dhanClientId: 'your-client-id',
+        fromProductType: ProductType.INTRADAY,
+        toProductType: ProductType.CNC,
+        exchangeSegment: position.exchangeSegment,
+        positionType: PositionType.LONG,
+        securityId: position.securityId,
+        tradingSymbol: position.tradingSymbol,
+        convertQty: position.netQty,
+      });
+
+      console.log(`Converted ${position.tradingSymbol}: ${response.orderId}`);
+    } catch (error) {
+      console.error(`Failed to convert ${position.tradingSymbol}:`, error);
+    }
+  }
+}
+```
+
+## Best Practices
+
+1. **Fetch positions regularly** to monitor real-time P&L
+2. **Convert positions before market close** to avoid auto square-off charges
+3. **Verify available quantity** in holdings before selling
+4. **Track T+1 holdings** separately as they cannot be sold immediately
+5. **Monitor collateral quantity** if you've pledged securities
+6. **Use position type filters** to separate long and short positions
+7. **Calculate net P&L** including both realized and unrealized profits
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Place orders based on portfolio
+- [Funds API](/docs/api-reference/funds) - Check fund requirements for position conversion
+- [Market Data](/docs/api-reference/market-data) - Get current prices for P&L calculation

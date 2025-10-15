@@ -1,0 +1,487 @@
+---
+title: Market Data API
+description: Access real-time and historical market data for trading decisions
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Market Data API
+
+The Market Data API provides access to real-time market data, historical price data, and fundamental information for securities.
+
+## Accessing the Market Data API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const marketData = client.marketData;
+```
+
+## Methods
+
+### Get LTP (Last Traded Price)
+
+Fetch the last traded price for multiple instruments.
+
+```typescript
+async getLTP(request: MarketFeedRequest): Promise<MarketLTPResponse>
+```
+
+#### Example
+
+```typescript
+async function getLastTradedPrices() {
+  const request = {
+    "NSE_EQ": [1333, 13], // Reliance, Nifty 50
+    "NSE_FNO": [50699]     // Nifty futures
+  };
+
+  const ltp = await client.marketData.getLTP(request);
+
+  Object.entries(ltp.data).forEach(([segment, securities]) => {
+    Object.entries(securities).forEach(([secId, data]) => {
+      console.log(`${segment}:${secId} - LTP: ₹${data.last_price}`);
+    });
+  });
+}
+```
+
+### Get OHLC
+
+Fetch Open, High, Low, Close prices for instruments.
+
+```typescript
+async getOHLC(request: MarketFeedRequest): Promise<MarketOHLCResponse>
+```
+
+#### Example
+
+```typescript
+async function getOHLCData() {
+  const request = {
+    "NSE_EQ": [1333] // Reliance
+  };
+
+  const ohlc = await client.marketData.getOHLC(request);
+
+  Object.entries(ohlc.data).forEach(([segment, securities]) => {
+    Object.entries(securities).forEach(([secId, data]) => {
+      console.log(`${segment}:${secId}`);
+      console.log(`Open: ₹${data.ohlc.open}`);
+      console.log(`High: ₹${data.ohlc.high}`);
+      console.log(`Low: ₹${data.ohlc.low}`);
+      console.log(`Close: ₹${data.ohlc.close}`);
+      console.log(`LTP: ₹${data.last_price}`);
+    });
+  });
+}
+```
+
+### Get Quote
+
+Fetch detailed quote including market depth.
+
+```typescript
+async getQuote(request: MarketFeedRequest): Promise<MarketQuoteResponse>
+```
+
+#### Example
+
+```typescript
+async function getDetailedQuote() {
+  const request = {
+    "NSE_EQ": [1333]
+  };
+
+  const quote = await client.marketData.getQuote(request);
+
+  Object.entries(quote.data).forEach(([segment, securities]) => {
+    Object.entries(securities).forEach(([secId, data]) => {
+      console.log(`${segment}:${secId}`);
+      console.log(`LTP: ₹${data.last_price}`);
+      console.log(`Volume: ${data.volume}`);
+      console.log(`Buy Quantity: ${data.buy_quantity}`);
+      console.log(`Sell Quantity: ${data.sell_quantity}`);
+      console.log(`OI: ${data.oi}`);
+
+      // Market depth
+      console.log('Buy Depth:', data.depth.buy);
+      console.log('Sell Depth:', data.depth.sell);
+    });
+  });
+}
+```
+
+### Get Historical Data (Daily)
+
+Fetch historical daily candle data.
+
+```typescript
+async getDailyHistoricalData(
+  request: HistoricalDataRequest
+): Promise<HistoricalDataResponse>
+```
+
+#### Example
+
+```typescript
+async function getHistoricalData() {
+  const request = {
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    fromDate: '2024-01-01',
+    toDate: '2024-12-31',
+  };
+
+  const data = await client.marketData.getDailyHistoricalData(request);
+
+  for (let i = 0; i < data.timestamp.length; i++) {
+    const date = new Date(data.timestamp[i] * 1000);
+    console.log(`Date: ${date.toLocaleDateString()}`);
+    console.log(`Open: ${data.open[i]}, High: ${data.high[i]}`);
+    console.log(`Low: ${data.low[i]}, Close: ${data.close[i]}`);
+    console.log(`Volume: ${data.volume[i]}`);
+  }
+}
+```
+
+### Get Intraday Historical Data
+
+Fetch intraday candle data.
+
+```typescript
+async getIntradayHistoricalData(
+  request: IntradayDataRequest
+): Promise<HistoricalDataResponse>
+```
+
+#### Example
+
+```typescript
+async function getIntradayData() {
+  const request = {
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    interval: '5', // 5-minute candles
+    fromDate: '2024-01-15',
+    toDate: '2024-01-15',
+  };
+
+  const data = await client.marketData.getIntradayHistoricalData(request);
+  // Process candle data
+}
+```
+
+### Get Processed Candle Data
+
+The most powerful method - automatically handles candle aggregation and date ranges.
+
+```typescript
+async getProcessedCandleData(
+  request: ProcessedCandleRequest
+): Promise<HistoricalDataResponse>
+```
+
+#### Examples
+
+<Tabs items={['By Days Ago', 'Custom Date Range', 'Different Intervals']}>
+<Tab value="By Days Ago">
+
+```typescript
+import { TimeInterval } from 'dhan-ts';
+
+async function getRecentData() {
+  // Get last 30 trading days of data
+  const data = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.DAY_1,
+    daysAgo: 30, // Last 30 trading days
+  });
+
+  console.log(`Fetched ${data.timestamp.length} candles`);
+}
+```
+
+</Tab>
+<Tab value="Custom Date Range">
+
+```typescript
+async function getCustomRange() {
+  const data = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.DAY_1,
+    from: '2024-01-01',
+    to: '2024-12-31',
+  });
+
+  return data;
+}
+```
+
+</Tab>
+<Tab value="Different Intervals">
+
+```typescript
+async function getDifferentIntervals() {
+  // 5-minute candles
+  const fiveMin = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.MIN_5,
+    daysAgo: 5,
+  });
+
+  // 1-hour candles
+  const oneHour = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.HOUR_1,
+    daysAgo: 10,
+  });
+
+  // Daily candles
+  const daily = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.DAY_1,
+    daysAgo: 100,
+  });
+
+  // Weekly candles
+  const weekly = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.WEEK_1,
+    daysAgo: 365,
+  });
+}
+```
+
+</Tab>
+</Tabs>
+
+<Callout type="info">
+  `getProcessedCandleData` automatically handles weekends, holidays, and candle aggregation. It's the recommended method for fetching historical data.
+</Callout>
+
+### Get Stock Basic Details
+
+Fetch comprehensive stock information including price, volume, and market depth.
+
+```typescript
+async getStockBasicDetails(
+  request: StockBasicDetailsRequest
+): Promise<StockBasicDetailsResponse>
+```
+
+#### Example
+
+```typescript
+async function getStockDetails() {
+  const details = await client.marketData.getStockBasicDetails({
+    Seg: 1, // NSE_EQ
+    SecId: 1333, // Reliance
+  });
+
+  console.log('Symbol:', details.sym);
+  console.log('Company:', details.d_sym);
+  console.log('LTP:', details.Ltp);
+  console.log('Change:', details.ch);
+  console.log('% Change:', details.p_ch);
+  console.log('Volume:', details.vol);
+  console.log('Day High:', details.hg);
+  console.log('Day Low:', details.lo);
+  console.log('52W High:', details.h1y);
+  console.log('52W Low:', details.l1y);
+  console.log('Market Depth:', details.submbp);
+}
+```
+
+### Get Stock Fundamentals
+
+Fetch fundamental data including financials, ratios, and shareholding patterns.
+
+```typescript
+async getStockFundamentals(
+  request: StockFundamentalRequest
+): Promise<StockFundamentalResponse>
+```
+
+#### Example
+
+```typescript
+async function getStockFundamentals() {
+  const fundamentals = await client.marketData.getStockFundamentals({
+    isins: ['INE002A01018'], // Reliance ISIN
+  });
+
+  const stock = fundamentals.data[0];
+
+  console.log('Company Values:');
+  console.log('Market Cap:', stock.CV.MARKET_CAP);
+  console.log('P/E Ratio:', stock.CV.STOCK_PE);
+  console.log('P/B Ratio:', stock.CV.PRICE_TO_BOOK_VALUE);
+  console.log('Dividend Yield:', stock.CV.DIVIDEND_YEILD);
+
+  console.log('\nTTM Financials:');
+  console.log('Revenue:', stock.TTM_cy.REVENUE);
+  console.log('Net Profit:', stock.TTM_cy.NET_PROFIT);
+  console.log('EPS:', stock.TTM_cy.EPS);
+  console.log('EBITDA:', stock.TTM_cy.EBITDA);
+
+  console.log('\nShareholding Pattern:');
+  console.log('Promoter:', stock.sHp.PROMOTER);
+  console.log('FII:', stock.sHp.FII);
+  console.log('DII:', stock.sHp.DII);
+}
+```
+
+## TypeScript Types
+
+### TimeInterval Enum
+
+```typescript
+enum TimeInterval {
+  MIN_1 = "1m",
+  MIN_5 = "5m",
+  MIN_15 = "15m",
+  MIN_30 = "30m",
+  HOUR_1 = "60m",
+  DAY_1 = "1d",
+  WEEK_1 = "1w",
+  MONTH_1 = "1M",
+  YEAR_1 = "1y",
+}
+```
+
+### HistoricalDataResponse
+
+```typescript
+interface HistoricalDataResponse {
+  open: number[];
+  high: number[];
+  low: number[];
+  close: number[];
+  volume: number[];
+  timestamp: number[]; // Unix timestamps
+}
+```
+
+## Common Patterns
+
+### Build Candlestick Chart
+
+```typescript
+async function buildCandlestickChart() {
+  const data = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.DAY_1,
+    daysAgo: 100,
+  });
+
+  const candles = data.timestamp.map((ts, i) => ({
+    time: new Date(ts * 1000),
+    open: data.open[i],
+    high: data.high[i],
+    low: data.low[i],
+    close: data.close[i],
+    volume: data.volume[i],
+  }));
+
+  return candles;
+}
+```
+
+### Calculate Technical Indicators
+
+```typescript
+async function calculateSMA(period: number = 20) {
+  const data = await client.marketData.getProcessedCandleData({
+    securityId: '1333',
+    exchangeSegment: ExchangeSegmentText.NSE_EQ,
+    instrument: 'EQUITY',
+    expiryCode: 0,
+    interval: TimeInterval.DAY_1,
+    daysAgo: 100,
+  });
+
+  const sma: number[] = [];
+
+  for (let i = period - 1; i < data.close.length; i++) {
+    const sum = data.close
+      .slice(i - period + 1, i + 1)
+      .reduce((a, b) => a + b, 0);
+    sma.push(sum / period);
+  }
+
+  return sma;
+}
+```
+
+### Monitor Multiple Securities
+
+```typescript
+async function monitorMultipleStocks() {
+  const request = {
+    "NSE_EQ": [1333, 11536, 3456], // Multiple securities
+  };
+
+  const ltps = await client.marketData.getLTP(request);
+
+  const prices = Object.entries(ltps.data["NSE_EQ"]).map(
+    ([secId, data]) => ({
+      securityId: secId,
+      price: data.last_price,
+    })
+  );
+
+  return prices;
+}
+```
+
+## Best Practices
+
+1. **Use `getProcessedCandleData`** for most use cases - it handles holidays and weekends
+2. **Cache fundamental data** as it doesn't change frequently
+3. **Use appropriate intervals** - intraday for short-term, daily for long-term analysis
+4. **Batch LTP requests** for multiple securities to reduce API calls
+5. **Handle missing data** gracefully for holidays and market closures
+6. **Use market depth** for better order placement decisions
+7. **Monitor data plan limits** to avoid exhaustion
+
+<Callout type="warn">
+  Market data APIs have rate limits and may require a data subscription plan. Check your plan limits before implementing high-frequency data fetching.
+</Callout>
+
+## Related APIs
+
+- [Live Feed](/docs/feeds/live-feed) - Real-time market data via WebSocket
+- [Option Chain](/docs/api-reference/option-chain) - Options data and Greeks
+- [Orders API](/docs/api-reference/orders) - Place orders based on market data
