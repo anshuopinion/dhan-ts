@@ -4,136 +4,443 @@ description: Complete TypeScript client for Dhan API v2 - Trading, Market Data, 
 ---
 
 import { Card, Cards } from 'fumadocs-ui/components/card';
-import { Terminal, Cpu, Database, Zap } from 'lucide-react';
+import { Terminal, Zap, TrendingUp, Shield, Database, Network, Code, BarChart3 } from 'lucide-react';
+import { Callout } from 'fumadocs-ui/components/callout';
 
 # dhan-ts
 
-A comprehensive TypeScript client library for Dhan's trading API v2, providing type-safe access to trading operations, market data, and real-time feeds.
+A comprehensive, fully-typed TypeScript/JavaScript client library for Dhan's trading API v2. Build powerful trading applications with type-safe access to orders, market data, portfolio management, and real-time WebSocket feeds.
 
-## Features
+## Why dhan-ts?
 
 <Cards>
   <Card icon={<Terminal />} title="Fully Typed" href="/docs/getting-started">
-    Complete TypeScript support with full type definitions for all API endpoints
+    Complete TypeScript support with IntelliSense and compile-time type checking for all API endpoints
   </Card>
 
-  <Card icon={<Zap />} title="WebSocket Feeds" href="/docs/api-reference/feeds">
-    Real-time market data, order updates, and market depth feeds
+  <Card icon={<Zap />} title="Real-time Feeds" href="/docs/feeds/live-feed">
+    WebSocket feeds for live market data, order updates, and market depth with automatic reconnection
   </Card>
 
-  <Card icon={<Database />} title="Comprehensive API" href="/docs/api-reference">
-    Access to Orders, Portfolio, Market Data, Funds, and more
+  <Card icon={<Database />} title="Comprehensive API" href="/docs/api-reference/orders">
+    15+ API modules covering orders, portfolio, funds, market data, options, and more
   </Card>
 
-  <Card icon={<Cpu />} title="Production Ready" href="/docs/getting-started">
-    Battle-tested with automatic reconnection and error handling
+  <Card icon={<Shield />} title="Production Ready" href="/docs/authentication">
+    Battle-tested with automatic reconnection, error handling, and multiple authentication methods
   </Card>
 </Cards>
 
 ## Quick Start
 
-Install the package:
+### Installation
 
 ```bash npm2yarn
 npm install dhan-ts
 ```
 
-Initialize the client:
+### Initialize Clients
 
 ```typescript
 import { DhanHqClient, DhanFeed, DhanEnv } from 'dhan-ts';
 
 const config = {
-  accessToken: 'your-access-token',
-  clientId: 'your-client-id',
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
   env: DhanEnv.PROD,
 };
 
-const dhanClient = new DhanHqClient(config);
-const dhanFeed = new DhanFeed(config);
+// REST API Client
+const client = new DhanHqClient(config);
+
+// WebSocket Feed Client
+const feed = new DhanFeed(config);
 ```
 
-## Main Components
-
-### DhanHqClient - REST API
-
-Access all REST API endpoints through organized modules:
+### Your First API Call
 
 ```typescript
-// Orders
-await dhanClient.orders.getOrders();
-await dhanClient.orders.placeOrder(orderRequest);
+// Get your fund limits
+const funds = await client.funds.getFundLimit();
+console.log('Available Balance:', funds.availabelBalance);
 
-// Portfolio
-await dhanClient.portfolio.getHoldings();
-await dhanClient.portfolio.getPositions();
+// Get your holdings
+const holdings = await client.portfolio.getHoldings();
+console.log('Holdings:', holdings);
 
-// Market Data
-await dhanClient.marketData.getLTP(request);
-await dhanClient.marketData.getProcessedCandleData(request);
-
-// Funds
-await dhanClient.funds.getFundLimit();
-```
-
-### DhanFeed - WebSocket Feeds
-
-Real-time market data and order updates:
-
-```typescript
-// Live market feed
-const feed = dhanFeed.liveFeed;
-await feed.connect();
-feed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
-
-feed.on('data', (data) => {
-  console.log('Market data:', data);
+// Place an order
+const order = await client.orders.placeOrder({
+  dhanClientId: config.clientId,
+  transactionType: 'BUY',
+  exchangeSegment: 'NSE_EQ',
+  productType: 'CNC',
+  orderType: 'LIMIT',
+  validity: 'DAY',
+  securityId: '1333',
+  quantity: 1,
+  price: 1850.00,
+  afterMarketOrder: false,
 });
-
-// Live order updates
-const orderFeed = dhanFeed.liveOrderUpdate;
-await orderFeed.connect();
 ```
 
-## Available Modules
+### Your First Live Feed
 
-| Module | Description |
-|--------|-------------|
-| `orders` | Place, modify, cancel, and query orders |
-| `portfolio` | Get holdings, positions, and convert positions |
-| `marketData` | Real-time and historical market data |
-| `funds` | Fund limits and margin calculator |
-| `authentication` | App-based and partner authentication |
-| `superOrders` | Advanced order types with targets and stop losses |
-| `foreverOrders` | GTT (Good Till Triggered) orders |
-| `optionChain` | Option chain data and Greeks |
-| `edis` | E-DIS authentication and inquiry |
-| `statements` | Ledger and trade history |
-| `tradersControl` | Kill switch functionality |
-| `scanner` | Market scanner for equity and F&O |
+```typescript
+import { FeedRequestCode, ExchangeSegment } from 'dhan-ts';
+
+const liveFeed = feed.liveFeed;
+
+// Connect
+await liveFeed.connect();
+
+// Subscribe to instruments
+const instruments = [
+  [ExchangeSegment.NSE_EQ, "1333"], // Reliance
+  [ExchangeSegment.NSE_EQ, "13"],   // Nifty 50
+];
+
+liveFeed.subscribe(instruments, FeedRequestCode.SUBSCRIBE_TICKER);
+
+// Listen for updates
+liveFeed.on('data', (data) => {
+  if (data.type === 'ticker') {
+    console.log(`${data.securityId}: ₹${data.lastTradedPrice}`);
+  }
+});
+```
+
+## API Reference
+
+### Trading APIs
+
+<Cards>
+  <Card
+    icon={<TrendingUp />}
+    title="Orders"
+    href="/docs/api-reference/orders"
+    description="Place, modify, cancel orders with full lifecycle management"
+  />
+  <Card
+    icon={<BarChart3 />}
+    title="Portfolio"
+    href="/docs/api-reference/portfolio"
+    description="View holdings, positions, and convert product types"
+  />
+  <Card
+    icon={<Database />}
+    title="Funds"
+    href="/docs/api-reference/funds"
+    description="Check balances and calculate margin requirements"
+  />
+  <Card
+    icon={<Code />}
+    title="Market Data"
+    href="/docs/api-reference/market-data"
+    description="Real-time quotes, historical data, and fundamentals"
+  />
+</Cards>
+
+### Advanced Order Types
+
+<Cards>
+  <Card
+    title="Super Orders"
+    href="/docs/api-reference/super-orders"
+    description="Advanced orders with target, stop loss, and trailing SL"
+  />
+  <Card
+    title="Forever Orders (GTT)"
+    href="/docs/api-reference/forever-orders"
+    description="Good Till Triggered orders with OCO support"
+  />
+</Cards>
+
+### Options Trading
+
+<Cards>
+  <Card
+    title="Option Chain"
+    href="/docs/api-reference/option-chain"
+    description="Option chain with Greeks, IV, and market depth"
+  />
+  <Card
+    title="Expired Option Data"
+    href="/docs/api-reference/expired-option-data"
+    description="Historical options data for backtesting strategies"
+  />
+</Cards>
+
+### Account & Reporting
+
+<Cards>
+  <Card
+    title="Authentication"
+    href="/docs/authentication"
+    description="App-based, partner, and static IP authentication"
+  />
+  <Card
+    title="E-DIS"
+    href="/docs/api-reference/edis"
+    description="Electronic delivery instruction for selling holdings"
+  />
+  <Card
+    title="Statements"
+    href="/docs/api-reference/statements"
+    description="Ledger reports and trade history"
+  />
+  <Card
+    title="Traders Control"
+    href="/docs/api-reference/traders-control"
+    description="Emergency kill switch for risk management"
+  />
+  <Card
+    title="Scanner"
+    href="/docs/api-reference/scanner"
+    description="Stock screening and market scanner"
+  />
+</Cards>
 
 ## WebSocket Feeds
 
-| Feed | Description |
-|------|-------------|
-| `liveFeed` | Real-time market data (ticker, quote, full) |
-| `liveOrderUpdate` | Real-time order status updates |
-| `marketDepthFeed20` | Level 2 market depth (20 levels) |
-| `marketDepthFeed200` | Level 2 market depth (200 levels) |
-| `multiConnectionLiveFeed` | Multiple concurrent connections |
-| `mockLiveFeed` | Testing without live connection |
-
-## Next Steps
+Real-time data streaming with automatic reconnection and subscription management.
 
 <Cards>
-  <Card title="Getting Started" href="/docs/getting-started" description="Installation, setup, and basic usage" />
-  <Card title="Authentication" href="/docs/authentication" description="Learn about authentication flows" />
-  <Card title="API Reference" href="/docs/api-reference" description="Complete API documentation" />
-  <Card title="Examples" href="/docs/examples" description="Real-world code examples" />
+  <Card
+    icon={<Zap />}
+    title="Live Feed"
+    href="/docs/feeds/live-feed"
+    description="Real-time market data with ticker, quote, and full subscriptions"
+  />
+  <Card
+    icon={<Network />}
+    title="Live Order Updates"
+    href="/docs/feeds/live-order-update"
+    description="Instant notifications on order status changes"
+  />
+  <Card
+    title="Market Depth Feed"
+    href="/docs/feeds/market-depth-feed"
+    description="20 and 200 level market depth for algorithmic trading"
+  />
+  <Card
+    title="Multi Connection Feed"
+    href="/docs/feeds/multi-connection-feed"
+    description="Multiple concurrent connections for 10,000+ instruments"
+  />
+  <Card
+    title="Mock Feeds"
+    href="/docs/feeds/mock-feeds"
+    description="Testing feeds without live connections"
+  />
 </Cards>
 
-## Support
+## Complete API Module List
 
-- **GitHub**: [anshuopinion/dhan-ts](https://github.com/anshuopinion/dhan-ts)
-- **Issues**: [Report bugs or request features](https://github.com/anshuopinion/dhan-ts/issues)
-- **npm**: [dhan-ts on npm](https://www.npmjs.com/package/dhan-ts)
+| Module | Description | Documentation |
+|--------|-------------|---------------|
+| **orders** | Place, modify, cancel, and query orders | [View →](/docs/api-reference/orders) |
+| **portfolio** | Holdings, positions, position conversion | [View →](/docs/api-reference/portfolio) |
+| **funds** | Fund limits and margin calculator | [View →](/docs/api-reference/funds) |
+| **marketData** | LTP, OHLC, historical, fundamentals | [View →](/docs/api-reference/market-data) |
+| **superOrders** | Target + stop loss with trailing | [View →](/docs/api-reference/super-orders) |
+| **foreverOrders** | GTT orders with OCO | [View →](/docs/api-reference/forever-orders) |
+| **optionChain** | Option chain with Greeks | [View →](/docs/api-reference/option-chain) |
+| **expiredOptionData** | Historical options data | [View →](/docs/api-reference/expired-option-data) |
+| **authentication** | Auth flows and IP management | [View →](/docs/authentication) |
+| **edis** | E-DIS for selling holdings | [View →](/docs/api-reference/edis) |
+| **statements** | Ledger and trade history | [View →](/docs/api-reference/statements) |
+| **tradersControl** | Kill switch | [View →](/docs/api-reference/traders-control) |
+| **scanner** | Stock screening | [View →](/docs/api-reference/scanner) |
+
+## WebSocket Feed List
+
+| Feed | Description | Documentation |
+|------|-------------|---------------|
+| **liveFeed** | Real-time market data | [View →](/docs/feeds/live-feed) |
+| **liveOrderUpdate** | Order status updates | [View →](/docs/feeds/live-order-update) |
+| **marketDepthFeed20** | 20-level market depth | [View →](/docs/feeds/market-depth-feed) |
+| **marketDepthFeed200** | 200-level market depth | [View →](/docs/feeds/market-depth-feed) |
+| **multiConnectionLiveFeed** | Multiple connections | [View →](/docs/feeds/multi-connection-feed) |
+| **mockLiveFeed** | Testing feed | [View →](/docs/feeds/mock-feeds) |
+
+## Common Use Cases
+
+### Algorithmic Trading
+
+```typescript
+// Monitor market data and place orders based on strategy
+liveFeed.on('data', async (data) => {
+  if (data.type === 'ticker') {
+    const price = data.lastTradedPrice;
+
+    // Your trading logic here
+    if (shouldBuy(price)) {
+      await client.orders.placeOrder({
+        // ... order details
+      });
+    }
+  }
+});
+```
+
+### Portfolio Management
+
+```typescript
+// View and manage your portfolio
+const holdings = await client.portfolio.getHoldings();
+const positions = await client.portfolio.getPositions();
+const funds = await client.funds.getFundLimit();
+
+// Calculate total portfolio value
+const totalValue = holdings.reduce((sum, h) =>
+  sum + (h.totalQty * h.avgCostPrice), 0
+);
+```
+
+### Options Trading
+
+```typescript
+// Get option chain with Greeks
+const optionChain = await client.optionChain.getOptionChain({
+  UnderlyingScrip: 13,
+  UnderlyingSeg: "IDX_I",
+  Expiry: "2024-01-25",
+});
+
+// Analyze strikes
+Object.entries(optionChain.data.oc).forEach(([strike, data]) => {
+  console.log(`${strike} CE IV: ${data.ce?.implied_volatility}`);
+  console.log(`${strike} PE Delta: ${data.pe?.greeks.delta}`);
+});
+```
+
+### Market Analysis
+
+```typescript
+// Get historical data for backtesting
+const historicalData = await client.marketData.getProcessedCandleData({
+  securityId: '1333',
+  exchangeSegment: ExchangeSegmentText.NSE_EQ,
+  instrument: 'EQUITY',
+  expiryCode: 0,
+  interval: TimeInterval.DAY_1,
+  daysAgo: 100,
+});
+
+// Analyze candlestick patterns
+historicalData.timestamp.forEach((ts, i) => {
+  const candle = {
+    open: historicalData.open[i],
+    high: historicalData.high[i],
+    low: historicalData.low[i],
+    close: historicalData.close[i],
+    volume: historicalData.volume[i],
+  };
+  // Your analysis logic
+});
+```
+
+## Key Features
+
+### Type Safety
+
+Every API call is fully typed with TypeScript interfaces:
+
+```typescript
+// IntelliSense shows all available fields
+const order: OrderResponse = await client.orders.placeOrder({
+  dhanClientId: string,
+  transactionType: TransactionType.BUY,
+  // ... TypeScript guides you through all fields
+});
+```
+
+### Error Handling
+
+Comprehensive error handling with specific error codes:
+
+```typescript
+try {
+  await client.orders.placeOrder(orderRequest);
+} catch (error: any) {
+  if (error.code === 'DH-906') {
+    console.error('Order error:', error.message);
+  } else if (error.code === 'DH-904') {
+    console.error('Rate limit exceeded');
+  }
+}
+```
+
+### Automatic Reconnection
+
+WebSocket feeds automatically reconnect with exponential backoff:
+
+```typescript
+liveFeed.on('disconnected', (data) => {
+  console.log('Disconnected, will auto-reconnect');
+});
+
+liveFeed.on('error', (error) => {
+  console.log('Error, reconnecting...');
+});
+```
+
+### Environment Support
+
+Switch between production and sandbox easily:
+
+```typescript
+// Production
+const config = {
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD, // Production
+};
+
+// Sandbox for testing
+const sandboxConfig = {
+  accessToken: 'sandbox-token',
+  clientId: 'sandbox-client',
+  env: DhanEnv.SANDBOX, // Sandbox
+};
+```
+
+## Getting Started
+
+<Cards>
+  <Card
+    title="Installation & Setup"
+    href="/docs/getting-started"
+    description="Install dhan-ts and make your first API call"
+  />
+  <Card
+    title="Authentication Guide"
+    href="/docs/authentication"
+    description="Learn about different authentication methods"
+  />
+  <Card
+    title="Orders API"
+    href="/docs/api-reference/orders"
+    description="Start placing and managing orders"
+  />
+  <Card
+    title="Live Feed"
+    href="/docs/feeds/live-feed"
+    description="Connect to real-time market data"
+  />
+</Cards>
+
+## Support & Resources
+
+- **GitHub Repository**: [anshuopinion/dhan-ts](https://github.com/anshuopinion/dhan-ts)
+- **Report Issues**: [GitHub Issues](https://github.com/anshuopinion/dhan-ts/issues)
+- **npm Package**: [dhan-ts on npm](https://www.npmjs.com/package/dhan-ts)
+- **Official Dhan API**: [Dhan API Documentation](https://dhanhq.co/docs)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests or open issues on GitHub.
+
+<Callout type="info">
+  This is an unofficial TypeScript client for Dhan API. For official support, please contact Dhan directly.
+</Callout>
