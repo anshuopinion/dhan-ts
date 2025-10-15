@@ -9,7 +9,7 @@ import {
   StockFundamentalRequest,
   StockFundamentalResponse,
 } from "../types";
-import { searchBySecId } from "../constant/dhan";
+// import { searchBySecId } from "../constant/dhan";
 
 interface DhanHistoricalDataRequest {
   EXCH: string;
