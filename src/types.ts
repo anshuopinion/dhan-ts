@@ -109,6 +109,7 @@ export enum ExchangeSegment {
   MCX_COMM = 7,
 }
 export enum ExchangeSegmentText {
+  IDX_I = "IDX_I",
   NSE_EQ = "NSE_EQ",
   NSE_FNO = "NSE_FNO",
   NSE_CURRENCY = "NSE_CURRENCY",
