@@ -14,6 +14,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "prepare": "tsc",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "demo:multiple": "npx ts-node demo/demo-for-multiple.ts",

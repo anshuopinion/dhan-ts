@@ -1,3 +1,4 @@
+import https from "node:https";
 import axios, { AxiosInstance } from "axios";
 import { DhanConfig } from "./types";
 import { Orders } from "./modules/orders";
@@ -38,6 +39,9 @@ export class DhanHqClient {
 
     this.axiosInstance = axios.create({
       baseURL,
+      // Force IPv4. DHAN's API-IP whitelist is IPv4-only; letting Node fall
+      // back to IPv6 produces DH-905 "Invalid IP" errors.
+      httpsAgent: new https.Agent({ keepAlive: true, family: 4 } as https.AgentOptions),
       headers: {
         "Content-Type": "application/json",
         "access-token": config.accessToken,
