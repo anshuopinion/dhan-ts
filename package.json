@@ -1,6 +1,6 @@
 {
   "name": "dhan-ts",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "TypeScript client for Dhan API v2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

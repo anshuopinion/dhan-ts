@@ -180,7 +180,10 @@ export class LiveFeed {
 
 		return new Promise((resolve, reject) => {
 			try {
-				const url = `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2`;
+				const connIdPart = this.config.connId
+					? `&connId=${encodeURIComponent(this.config.connId)}`
+					: "";
+				const url = `wss://api-feed.dhan.co?version=2&token=${this.config.accessToken}&clientId=${this.config.clientId}&authType=2${connIdPart}`;
 				this.cleanup(); // Ensure clean slate before creating new connection
 				this.ws = new WebSocket(url, {
 					handshakeTimeout: 10000, // 10 second timeout for initial connection

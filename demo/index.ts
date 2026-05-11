@@ -19,6 +19,7 @@ import {
   demoLiveOrderUpdate,
   demoMultiConnectionLiveFeed,
   demoMockMultiConnectionLiveFeed,
+  demoFourLiveFeeds,
 } from "./live-feeds";
 
 dotenv.config();
@@ -27,7 +28,7 @@ const config: DhanConfig = {
   accessToken: process.env.ACCESS_TOKEN!,
   clientId: process.env.DHAN_CLIENT_ID!,
   env: DhanEnv.PROD,
-  webAccess:process.env.WEB_ACCCES_TOKEN,
+  webAccess: process.env.WEB_ACCCES_TOKEN,
 };
 
 const dhanClient = new DhanHqClient(config);
@@ -35,7 +36,7 @@ const dhanFeed = new DhanFeed(config);
 
 async function runComprehensiveDemo() {
   try {
-    await allTimeFrameCandles(dhanClient);
+    // await allTimeFrameCandles(dhanClient);
     // await demoOrders(dhanClient, config);
     // await demoPortfolio(dhanClient);
     // await demoFunds(dhanClient, config);
@@ -52,6 +53,7 @@ async function runComprehensiveDemo() {
     // await demoLiveFeedMock(dhanFeed);
     // await demoMultiConnectionLiveFeed(dhanFeed);
     // await demoMockMultiConnectionLiveFeed(dhanFeed);
+    await demoFourLiveFeeds(config);
   } catch (error) {
     console.error("Error in demo:", error);
   }

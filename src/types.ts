@@ -13,6 +13,10 @@ export interface DhanConfig {
   autoReconnect?: boolean;
   /** Override max reconnect attempts. Default 10. Ignored if autoReconnect=false. */
   maxReconnectAttempts?: number;
+  /** Optional unique connection identifier appended to live-feed ws URL.
+   *  Use when multiple LiveFeed instances exist under the same token+clientId,
+   *  otherwise DHAN deduplicates and closes one with code 1006. */
+  connId?: string;
 }
 
 export enum OrderFlag {
