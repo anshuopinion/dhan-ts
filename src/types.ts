@@ -8,6 +8,11 @@ export interface DhanConfig {
   env: DhanEnv;
   clientId: string;
   webAccess?: string;
+  /** If false, library will NOT auto-reconnect on connect / disconnect / auth
+   *  failure. Caller takes full responsibility for reconnection. Default true. */
+  autoReconnect?: boolean;
+  /** Override max reconnect attempts. Default 10. Ignored if autoReconnect=false. */
+  maxReconnectAttempts?: number;
 }
 
 export enum OrderFlag {

@@ -27,9 +27,14 @@ export class LiveFeed {
 	private isIntentionalClose: boolean = false;
 	private subscribedInstruments: Map<number, Instrument[]> = new Map();
 	private connectionState: "disconnected" | "connecting" | "connected" | "reconnecting" = "disconnected";
+	private readonly autoReconnect: boolean;
 
 	constructor(config: DhanConfig) {
 		this.config = config;
+		this.autoReconnect = config.autoReconnect ?? true;
+		if (typeof config.maxReconnectAttempts === "number") {
+			this.maxReconnectAttempts = config.maxReconnectAttempts;
+		}
 	}
 
 	private getReconnectDelay(): number {
@@ -160,7 +165,7 @@ export class LiveFeed {
 		console.error("Connection error:", error);
 		this.emit("error", error);
 
-		if (!this.isIntentionalClose) {
+		if (!this.isIntentionalClose && this.autoReconnect) {
 			this.attemptReconnect();
 		}
 	}
@@ -213,7 +218,7 @@ export class LiveFeed {
 					console.log(`WebSocket closed with code ${code} and reason: ${reason}`);
 					this.emit("close", {code, reason: reason.toString()});
 
-					if (!this.isIntentionalClose) {
+					if (!this.isIntentionalClose && this.autoReconnect) {
 						this.attemptReconnect();
 					}
 				});

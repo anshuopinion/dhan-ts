@@ -39,17 +39,20 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 	private readonly config: DhanConfig;
 	private connections: Map<number, ConnectionInfo> = new Map();
 	private readonly maxConnections: number = 5;
-	private readonly maxReconnectAttempts: number = 10;
+	private readonly maxReconnectAttempts: number;
 	private readonly baseReconnectDelay: number = 2000;
 	private readonly maxReconnectDelay: number = 60000;
 	private readonly maxInstrumentsPerConnection: number = 5000; // Dhan allows 5000 per connection
 	private readonly maxInstrumentsPerMessage: number = 100; // Dhan limit per message
 	private connectionCounter: number = 0;
 	private instanceId: string;
+	private readonly autoReconnect: boolean;
 
 	constructor(config: DhanConfig) {
 		super();
 		this.config = config;
+		this.autoReconnect = config.autoReconnect ?? true;
+		this.maxReconnectAttempts = config.maxReconnectAttempts ?? 10;
 		// Create unique instance ID to avoid conflicts with other instances
 		this.instanceId = `mlf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 	}
@@ -297,7 +300,7 @@ export class MultiConnectionLiveFeed extends EventEmitter {
 					console.log(`WebSocket connection ${connectionId} closed with code ${code} and reason: ${reason}`);
 					this.emit("close", {connectionId, code, reason: reason.toString()});
 
-					if (!connection.isIntentionalClose) {
+					if (!connection.isIntentionalClose && this.autoReconnect) {
 						this.attemptReconnect(connectionId);
 					}
 				});

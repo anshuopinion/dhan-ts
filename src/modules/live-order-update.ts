@@ -24,7 +24,7 @@ export class LiveOrderUpdateManager extends EventEmitter {
   private ws: WebSocket | null = null;
   private readonly config: LiveOrderUpdateConfig;
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 10; // Increased max attempts
+  private readonly maxReconnectAttempts: number; // Default 10
   private readonly reconnectDelay = 3000; // Reduced initial delay to 3 seconds
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private pingTimeout: NodeJS.Timeout | null = null;
@@ -33,10 +33,13 @@ export class LiveOrderUpdateManager extends EventEmitter {
   private isAuthenticated = false;
   private lastPongReceived: number = Date.now();
   private connectionAttemptTimeout: NodeJS.Timeout | null = null;
+  private readonly autoReconnect: boolean;
 
   constructor(config: LiveOrderUpdateConfig) {
     super();
     this.config = config;
+    this.autoReconnect = config.autoReconnect ?? true;
+    this.maxReconnectAttempts = config.maxReconnectAttempts ?? 10;
   }
 
   public on<K extends keyof BaseEventMap>(
@@ -131,6 +134,9 @@ export class LiveOrderUpdateManager extends EventEmitter {
             this.config.onDisconnect(code, reasonStr);
           }
 
+          if (!this.autoReconnect) {
+            return;
+          }
           // Handle abnormal closure specifically
           if (code === 1006 || code === 1001) {
             console.log(
@@ -195,13 +201,14 @@ export class LiveOrderUpdateManager extends EventEmitter {
   }
 
   private forceReconnect(): void {
+    if (!this.autoReconnect) return;
     console.log("Forcing reconnection...");
     this.cleanup();
     this.attemptReconnect();
   }
 
   private immediateReconnect(): void {
-    if (this.isIntentionalDisconnect) return;
+    if (this.isIntentionalDisconnect || !this.autoReconnect) return;
 
     console.log("Attempting immediate reconnection...");
     this.cleanup();
@@ -265,8 +272,11 @@ export class LiveOrderUpdateManager extends EventEmitter {
       this.isAuthenticated = false;
       this.emit("authError", error);
 
-      // Attempt reconnect on auth failure
-      this.attemptReconnect();
+      // Attempt reconnect on auth failure only if autoReconnect is enabled.
+      // When disabled, caller handles token refresh + reconnect.
+      if (this.autoReconnect) {
+        this.attemptReconnect();
+      }
     }
   }
 
@@ -282,6 +292,7 @@ export class LiveOrderUpdateManager extends EventEmitter {
   private async attemptReconnect(): Promise<void> {
     if (
       this.isIntentionalDisconnect ||
+      !this.autoReconnect ||
       this.reconnectAttempts >= this.maxReconnectAttempts ||
       this.ws?.readyState === WebSocket.OPEN
     ) {

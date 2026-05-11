@@ -47,7 +47,7 @@ export class MarketDepthFeed extends EventEmitter {
 	private readonly config: DhanConfig;
 	private connections: Map<number, ConnectionInfo> = new Map();
 	private readonly maxConnections: number = 5;
-	private readonly maxReconnectAttempts: number = 10;
+	private readonly maxReconnectAttempts: number;
 	private readonly baseReconnectDelay: number = 2000;
 	private readonly maxReconnectDelay: number = 60000;
 	private readonly maxInstrumentsPerConnection: {[key in DepthType]: number} = {
@@ -61,11 +61,14 @@ export class MarketDepthFeed extends EventEmitter {
 	private connectionCounter: number = 0;
 	private instanceId: string;
 	private readonly depthType: DepthType;
+	private readonly autoReconnect: boolean;
 
 	constructor(config: DhanConfig, depthType: DepthType = 20) {
 		super();
 		this.config = config;
 		this.depthType = depthType;
+		this.autoReconnect = config.autoReconnect ?? true;
+		this.maxReconnectAttempts = config.maxReconnectAttempts ?? 10;
 		// Create unique instance ID to avoid conflicts with other instances
 		this.instanceId = `mdf_${depthType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 	}
@@ -306,7 +309,7 @@ export class MarketDepthFeed extends EventEmitter {
 					console.log(`WebSocket connection ${connectionId} closed with code ${code} and reason: ${reason}`);
 					this.emit("close", {connectionId, code, reason: reason.toString()});
 
-					if (!connection.isIntentionalClose) {
+					if (!connection.isIntentionalClose && this.autoReconnect) {
 						this.attemptReconnect(connectionId);
 					}
 				});
