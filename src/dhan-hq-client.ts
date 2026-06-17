@@ -14,6 +14,7 @@ import { Authentication } from "./modules/authentication";
 import { SuperOrders } from "./modules/super-orders";
 import { OptionChain } from "./modules/option-chain";
 import { ExpiredOptionData } from "./modules/expired-option-data";
+import { ConditionalTriggers } from "./modules/conditional-triggers";
 
 export class DhanHqClient {
   private readonly axiosInstance: AxiosInstance;
@@ -30,12 +31,15 @@ export class DhanHqClient {
   public readonly superOrders: SuperOrders;
   public readonly optionChain: OptionChain;
   public readonly expiredOptionData: ExpiredOptionData;
+  public readonly conditionalTriggers: ConditionalTriggers;
 
   constructor(config: DhanConfig) {
+    // Every module prepends "/v2/..." on its own. Keep the base URL prefix-free
+    // for both envs — otherwise sandbox resolves to "/v2/v2/orders" (404).
     const baseURL =
       config.env === "PROD"
         ? "https://api.dhan.co"
-        : "https://sandbox.dhan.co/v2";
+        : "https://sandbox.dhan.co";
 
     this.axiosInstance = axios.create({
       baseURL,
@@ -62,5 +66,6 @@ export class DhanHqClient {
     this.superOrders = new SuperOrders(this.axiosInstance);
     this.optionChain = new OptionChain(this.axiosInstance);
     this.expiredOptionData = new ExpiredOptionData(this.axiosInstance);
+    this.conditionalTriggers = new ConditionalTriggers(this.axiosInstance);
   }
 }

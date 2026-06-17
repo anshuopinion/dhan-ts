@@ -1350,3 +1350,113 @@ export interface ExpiredOptionDataResponse {
     pe: ExpiredOptionDataValues | null;
   };
 }
+
+// --- Conditional Triggers / Alerts ---
+export interface TriggerCondition {
+  comparisonType: string; // e.g. "TECHNICAL_WITH_VALUE"
+  exchangeSegment: ExchangeSegment;
+  securityId: string;
+  indicatorName?: string; // e.g. "SMA_5"
+  comparingIndicatorName?: string;
+  timeFrame: string; // DATE | ONE_MIN | FIVE_MIN | FIFTEEN_MIN | DAY
+  operator: string; // e.g. "CROSSING_UP"
+  comparingValue?: number;
+  expDate: string; // YYYY-MM-DD
+  frequency: string; // e.g. "ONCE"
+  userNote?: string;
+}
+
+export interface TriggerOrder {
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegment;
+  productType: ProductType;
+  orderType: OrderType;
+  securityId: string;
+  quantity: number;
+  validity: Validity;
+  price: string;
+  discQuantity?: string;
+  triggerPrice?: string;
+}
+
+export interface ConditionalTriggerRequest {
+  dhanClientId: string;
+  condition: TriggerCondition;
+  orders: TriggerOrder[];
+}
+
+export interface ConditionalTriggerResponse {
+  alertId: string;
+  alertStatus: string;
+}
+
+export interface ConditionalTriggerDetail extends ConditionalTriggerRequest {
+  alertId: string;
+  alertStatus: string;
+}
+
+// --- P&L Based Exit ---
+export interface PnlExitRequest {
+  dhanClientId?: string;
+  profitValue?: number;
+  lossValue?: number;
+  productType?: ("INTRADAY" | "DELIVERY")[];
+  enableKillSwitch?: boolean;
+}
+
+export interface PnlExitResponse {
+  pnlExitStatus: string;
+  message: string;
+}
+
+export interface PnlExitConfig {
+  pnlExitStatus: string;
+  profit: number;
+  loss: number;
+  enableKillSwitch: boolean;
+  productType: string;
+}
+
+export interface KillSwitchStatusResponse {
+  dhanClientId: string;
+  killSwitchStatus: string;
+}
+
+// --- Multi-Order Margin ---
+export interface MultiOrderMarginScrip {
+  exchangeSegment: ExchangeSegment;
+  transactionType: TransactionType;
+  quantity: number;
+  productType: ProductType;
+  securityId: string;
+  price?: number;
+  triggerPrice?: number;
+}
+
+export interface MultiOrderMarginRequest {
+  dhanClientId: string;
+  includePosition?: boolean;
+  includeOrder?: boolean;
+  scripList: MultiOrderMarginScrip[];
+}
+
+export interface MultiOrderMarginResponse {
+  clientId?: string;
+  totalMargin?: number;
+  spanMargin?: number;
+  exposure?: number;
+  equityMargin?: number;
+  foMargin?: number;
+  commodity?: number;
+  currency?: number;
+}
+
+// --- Renew Token ---
+export interface RenewTokenResponse {
+  dhanClientId: string;
+  dhanClientName: string;
+  dhanClientUcc: string;
+  givenPowerOfAttorney: boolean;
+  accessToken: string;
+  expiryTime: string;
+}

@@ -32,4 +32,8 @@ export class Portfolio {
     );
     return response.data;
   }
+
+  async exitAllPositions(): Promise<void> {
+    await this.axiosInstance.delete("/v2/positions");
+  }
 }

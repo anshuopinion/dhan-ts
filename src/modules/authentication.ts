@@ -12,6 +12,7 @@ import {
 	IPResponse,
 	GetIPResponse,
 	UserProfileResponse,
+	RenewTokenResponse,
 } from "../types";
 
 /**
@@ -162,6 +163,20 @@ export class Authentication {
 	async getUserProfile(): Promise<UserProfileResponse> {
 		const response = await this.axiosInstance.get<UserProfileResponse>(
 			"/v2/profile"
+		);
+		return response.data;
+	}
+
+	/**
+	 * Renew an active Dhan Web access token for another 24 hours.
+	 * Only renews currently-active tokens; renewing an expired token errors.
+	 * @param dhanClientId - Client ID of the user (sent as request header)
+	 * @returns Promise containing the newly generated access token and expiry
+	 */
+	async renewToken(dhanClientId: string): Promise<RenewTokenResponse> {
+		const response = await this.axiosInstance.get<RenewTokenResponse>(
+			"/v2/RenewToken",
+			{ headers: { dhanClientId } }
 		);
 		return response.data;
 	}

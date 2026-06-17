@@ -23,13 +23,18 @@ export async function demoLiveFeed(dhanFeed: DhanFeed) {
     console.log("Subscribed to live feed");
 
     dhanFeed.liveFeed.on("data", (data) => {
-      console.log("Received live feed data:", data);
-      // marekt depth
-      // console.table(data?.type);
-      // if ("marketDepth" in data) {
-      //   console.table(data?.marketDepth.buy);
-      //   console.table(data?.marketDepth.sell);
-      // }
+      if ("type" in data && data.type === "prev_close") {
+        console.log(
+          "PREV CLOSE:",
+          data.securityId,
+          "price=",
+          data.previousClosePrice,
+          "oi=",
+          data.previousOpenInterest,
+        );
+      } else {
+        console.log("Received live feed data:", data);
+      }
     });
 
     dhanFeed.liveFeed.on("error", (error) => {

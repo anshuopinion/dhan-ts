@@ -18,3 +18,4 @@ export * from "./modules/authentication";
 export * from "./modules/super-orders";
 export * from "./modules/option-chain";
 export * from "./modules/expired-option-data";
+export * from "./modules/conditional-triggers";

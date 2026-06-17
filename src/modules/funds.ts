@@ -3,6 +3,8 @@ import {
   FundLimitResponse,
   MarginCalculatorRequest,
   MarginCalculatorResponse,
+  MultiOrderMarginRequest,
+  MultiOrderMarginResponse,
 } from "../types";
 
 export class Funds {
@@ -20,6 +22,16 @@ export class Funds {
   ): Promise<MarginCalculatorResponse> {
     const response = await this.axiosInstance.post<MarginCalculatorResponse>(
       "/v2/margincalculator",
+      request
+    );
+    return response.data;
+  }
+
+  async calculateMultiOrderMargin(
+    request: MultiOrderMarginRequest
+  ): Promise<MultiOrderMarginResponse> {
+    const response = await this.axiosInstance.post<MultiOrderMarginResponse>(
+      "/v2/margincalculator/multi",
       request
     );
     return response.data;
