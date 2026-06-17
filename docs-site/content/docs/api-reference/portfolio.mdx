@@ -126,6 +126,31 @@ async function convertIntradayToDelivery() {
   Position conversion must be done before market close. You can convert INTRADAY positions to CNC (delivery) to avoid square-off.
 </Callout>
 
+### Exit All Positions
+
+Exit all open positions at market price and cancel all open orders for the current trading day.
+
+```typescript
+async exitAllPositions(): Promise<void>
+```
+
+#### Example
+
+```typescript
+async function exitEverything() {
+  try {
+    await client.portfolio.exitAllPositions();
+    console.log('All positions exited and open orders cancelled');
+  } catch (error) {
+    console.error('Error exiting positions:', error);
+  }
+}
+```
+
+<Callout type="warn">
+  This is irreversible — it squares off **every** open position at market price and cancels all open orders. The API returns `202 Accepted` with no response body. Requires Static IP whitelisting.
+</Callout>
+
 ## TypeScript Types
 
 ### HoldingsResponse

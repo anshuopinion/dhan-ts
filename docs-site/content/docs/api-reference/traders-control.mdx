@@ -64,6 +64,99 @@ async function deactivateKillSwitch() {
 }
 ```
 
+## Get Kill Switch Status
+
+Check whether the kill switch is active for the current trading day.
+
+```typescript
+async getKillSwitchStatus(): Promise<KillSwitchStatusResponse>
+```
+
+### Example
+
+```typescript
+async function checkKillSwitch() {
+  try {
+    const status = await client.tradersControl.getKillSwitchStatus();
+    console.log('Kill Switch Status:', status.killSwitchStatus); // ACTIVATE | DEACTIVATE
+  } catch (error) {
+    console.error('Error fetching kill switch status:', error);
+  }
+}
+```
+
+## P&L Based Exit
+
+Configure automatic square-off rules based on cumulative profit or loss thresholds. The configured exit stays active for the current trading day and resets at the end of the session.
+
+### Configure P&L Based Exit
+
+```typescript
+async configurePnlExit(request: PnlExitRequest): Promise<PnlExitResponse>
+```
+
+#### Example
+
+```typescript
+async function setPnlExit() {
+  try {
+    const response = await client.tradersControl.configurePnlExit({
+      dhanClientId: 'your-client-id',
+      profitValue: 5000,    // exit all when cumulative profit hits ₹5,000
+      lossValue: 2000,      // exit all when cumulative loss hits ₹2,000
+      productType: ['INTRADAY'],
+      enableKillSwitch: true,
+    });
+
+    console.log('P&L Exit Status:', response.pnlExitStatus); // ACTIVE | INACTIVE
+    console.log('Message:', response.message);
+  } catch (error) {
+    console.error('Error configuring P&L exit:', error);
+  }
+}
+```
+
+### Get P&L Based Exit
+
+Fetch the currently active P&L based exit configuration.
+
+```typescript
+async getPnlExit(): Promise<PnlExitConfig>
+```
+
+#### Example
+
+```typescript
+async function viewPnlExit() {
+  const config = await client.tradersControl.getPnlExit();
+  console.log('Status:', config.pnlExitStatus);
+  console.log('Target Profit:', config.profit);
+  console.log('Max Loss:', config.loss);
+  console.log('Kill Switch Enabled:', config.enableKillSwitch);
+}
+```
+
+### Stop P&L Based Exit
+
+Disable the active P&L based exit configuration.
+
+```typescript
+async stopPnlExit(): Promise<PnlExitResponse>
+```
+
+#### Example
+
+```typescript
+async function disablePnlExit() {
+  const response = await client.tradersControl.stopPnlExit();
+  console.log('P&L Exit Status:', response.pnlExitStatus); // INACTIVE
+}
+```
+
+<Callout type="warn">
+  P&L based exit and order placement/modification/cancellation require Static IP whitelisting.
+</Callout>
+
 ## TypeScript Types
 
 ### KillSwitchStatus Enum
@@ -81,6 +174,48 @@ enum KillSwitchStatus {
 interface KillSwitchResponse {
   dhanClientId: string;
   killSwitchStatus: string;
+}
+```
+
+### KillSwitchStatusResponse
+
+```typescript
+interface KillSwitchStatusResponse {
+  dhanClientId: string;
+  killSwitchStatus: string; // ACTIVATE | DEACTIVATE
+}
+```
+
+### PnlExitRequest
+
+```typescript
+interface PnlExitRequest {
+  dhanClientId?: string;
+  profitValue?: number;      // portfolio-level profit that triggers exit
+  lossValue?: number;        // portfolio-level loss that triggers exit
+  productType?: ("INTRADAY" | "DELIVERY")[];
+  enableKillSwitch?: boolean;
+}
+```
+
+### PnlExitResponse
+
+```typescript
+interface PnlExitResponse {
+  pnlExitStatus: string; // ACTIVE | INACTIVE
+  message: string;
+}
+```
+
+### PnlExitConfig
+
+```typescript
+interface PnlExitConfig {
+  pnlExitStatus: string; // ACTIVE | INACTIVE
+  profit: number;
+  loss: number;
+  enableKillSwitch: boolean;
+  productType: string;
 }
 ```
 

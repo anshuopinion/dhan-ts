@@ -1,0 +1,226 @@
+---
+title: Conditional Triggers API
+description: Price and technical-indicator based alerts that auto-place orders when met
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Conditional Triggers API
+
+The Conditional Triggers API lets you create alerts based on price or technical-indicator conditions. When a condition is met, one or more orders are placed automatically. Useful for breakout entries, indicator crossovers, and automated risk entries.
+
+<Callout type="info">
+  Conditional Triggers are currently supported only for **Equities and Indices**. You can receive a postback update when a trigger fires by providing a Webhook URL while generating the Access Token.
+</Callout>
+
+## Accessing the Conditional Triggers API
+
+```typescript
+import { DhanHqClient, DhanEnv } from 'dhan-ts';
+
+const client = new DhanHqClient({
+  accessToken: process.env.DHAN_ACCESS_TOKEN!,
+  clientId: process.env.DHAN_CLIENT_ID!,
+  env: DhanEnv.PROD,
+});
+
+const conditionalTriggers = client.conditionalTriggers;
+```
+
+## Methods
+
+### Place Conditional Trigger
+
+Create a new trigger with a condition and the order(s) to place when it fires.
+
+```typescript
+async placeTrigger(
+  request: ConditionalTriggerRequest
+): Promise<ConditionalTriggerResponse>
+```
+
+#### Example
+
+```typescript
+import {
+  ExchangeSegment,
+  ProductType,
+  OrderType,
+  TransactionType,
+  Validity,
+} from 'dhan-ts';
+
+async function placeSmaCrossTrigger() {
+  try {
+    const response = await client.conditionalTriggers.placeTrigger({
+      dhanClientId: 'your-client-id',
+      condition: {
+        comparisonType: 'TECHNICAL_WITH_VALUE',
+        exchangeSegment: ExchangeSegment.NSE_EQ,
+        securityId: '12345',
+        indicatorName: 'SMA_5',
+        timeFrame: 'DAY',
+        operator: 'CROSSING_UP',
+        comparingValue: 250,
+        expDate: '2026-08-24',
+        frequency: 'ONCE',
+        userNote: 'Price crossing SMA',
+      },
+      orders: [
+        {
+          transactionType: TransactionType.BUY,
+          exchangeSegment: ExchangeSegment.NSE_EQ,
+          productType: ProductType.CNC,
+          orderType: OrderType.LIMIT,
+          securityId: '12345',
+          quantity: 10,
+          validity: Validity.DAY,
+          price: '250.00',
+          discQuantity: '0',
+          triggerPrice: '0',
+        },
+      ],
+    });
+
+    console.log('Alert ID:', response.alertId);
+    console.log('Status:', response.alertStatus); // ACTIVE
+  } catch (error) {
+    console.error('Error placing trigger:', error);
+  }
+}
+```
+
+### Modify Conditional Trigger
+
+Modify the trigger condition and/or its order execution parameters. Same request structure as `placeTrigger`, with `alertId` passed separately.
+
+```typescript
+async modifyTrigger(
+  alertId: string,
+  request: ConditionalTriggerRequest
+): Promise<ConditionalTriggerResponse>
+```
+
+### Delete Conditional Trigger
+
+Delete a trigger by its `alertId`.
+
+```typescript
+async deleteTrigger(alertId: string): Promise<ConditionalTriggerResponse>
+```
+
+#### Example
+
+```typescript
+async function removeTrigger(alertId: string) {
+  const response = await client.conditionalTriggers.deleteTrigger(alertId);
+  console.log('Deleted:', response.alertId, response.alertStatus);
+}
+```
+
+### Get Conditional Trigger by ID
+
+Retrieve status and details for a specific trigger.
+
+```typescript
+async getTriggerById(alertId: string): Promise<ConditionalTriggerDetail>
+```
+
+### Get All Conditional Triggers
+
+Retrieve all conditional triggers for the account.
+
+```typescript
+async getAllTriggers(): Promise<ConditionalTriggerDetail[]>
+```
+
+#### Example
+
+```typescript
+async function listTriggers() {
+  const triggers = await client.conditionalTriggers.getAllTriggers();
+
+  triggers.forEach(t => {
+    console.log(`${t.alertId} [${t.alertStatus}] — ${t.condition.userNote}`);
+  });
+}
+```
+
+## TypeScript Types
+
+### ConditionalTriggerRequest
+
+```typescript
+interface ConditionalTriggerRequest {
+  dhanClientId: string;
+  condition: TriggerCondition;
+  orders: TriggerOrder[];
+}
+```
+
+### TriggerCondition
+
+```typescript
+interface TriggerCondition {
+  comparisonType: string;        // e.g. "TECHNICAL_WITH_VALUE"
+  exchangeSegment: ExchangeSegment;
+  securityId: string;
+  indicatorName?: string;        // e.g. "SMA_5"
+  comparingIndicatorName?: string;
+  timeFrame: string;             // DATE | ONE_MIN | FIVE_MIN | FIFTEEN_MIN | DAY
+  operator: string;              // e.g. "CROSSING_UP"
+  comparingValue?: number;
+  expDate: string;               // YYYY-MM-DD (default: 1 year)
+  frequency: string;             // e.g. "ONCE"
+  userNote?: string;
+}
+```
+
+### TriggerOrder
+
+```typescript
+interface TriggerOrder {
+  transactionType: TransactionType;
+  exchangeSegment: ExchangeSegment;
+  productType: ProductType;
+  orderType: OrderType;
+  securityId: string;
+  quantity: number;
+  validity: Validity;
+  price: string;
+  discQuantity?: string;
+  triggerPrice?: string;         // for SL & SL-M orders
+}
+```
+
+### ConditionalTriggerResponse
+
+```typescript
+interface ConditionalTriggerResponse {
+  alertId: string;
+  alertStatus: string; // ACTIVE
+}
+```
+
+### ConditionalTriggerDetail
+
+```typescript
+interface ConditionalTriggerDetail extends ConditionalTriggerRequest {
+  alertId: string;
+  alertStatus: string;
+}
+```
+
+## Best Practices
+
+1. **Set a sensible `expDate`** — triggers default to a 1-year expiry if not constrained
+2. **Use `frequency: 'ONCE'`** for one-shot entries to avoid repeat firing
+3. **Set up a postback Webhook** to get notified the moment a trigger fires
+4. **Test in sandbox** before deploying indicator-based automation
+5. **Remember the scope** — only Equities and Indices are supported
+
+## Related APIs
+
+- [Orders API](/docs/api-reference/orders) - Manage the orders placed by triggers
+- [Super Orders API](/docs/api-reference/super-orders) - Target + stop loss bracket orders
+- [Traders Control API](/docs/api-reference/traders-control) - Kill switch and P&L based exit

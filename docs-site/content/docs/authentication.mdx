@@ -280,6 +280,48 @@ async function getUserProfile() {
   Use `getUserProfile()` to check if your access token is still valid and to verify account settings.
 </Callout>
 
+## Renew Token
+
+Renew a currently-active Dhan Web access token for another 24 hours. Returns a fresh token with new expiry. The `dhanClientId` is sent as a request header.
+
+```typescript
+async renewToken(dhanClientId: string): Promise<RenewTokenResponse>
+```
+
+### Example
+
+```typescript
+async function renewAccessToken() {
+  try {
+    const renewed = await client.authentication.renewToken('your-client-id');
+
+    console.log('New Access Token:', renewed.accessToken);
+    console.log('Expires At:', renewed.expiryTime);
+    console.log('Client Name:', renewed.dhanClientName);
+    console.log('UCC:', renewed.dhanClientUcc);
+  } catch (error) {
+    console.error('Error renewing token:', error);
+  }
+}
+```
+
+<Callout type="warn">
+  Only **active** tokens can be renewed — renewing an already-expired token returns an error. Renew before expiry to keep a session alive.
+</Callout>
+
+### RenewTokenResponse
+
+```typescript
+interface RenewTokenResponse {
+  dhanClientId: string;
+  dhanClientName: string;
+  dhanClientUcc: string;       // Unique Client Code
+  givenPowerOfAttorney: boolean; // DDPI status
+  accessToken: string;          // newly generated token
+  expiryTime: string;           // new expiry timestamp
+}
+```
+
 ## Complete Authentication Flow Example
 
 Here's a complete example of the app-based authentication flow:

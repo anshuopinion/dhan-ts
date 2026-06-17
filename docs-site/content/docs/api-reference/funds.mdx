@@ -99,6 +99,65 @@ async function checkMarginRequirement() {
 }
 ```
 
+### Calculate Multi-Order Margin
+
+Calculate the combined margin for multiple orders in a single request, including hedge benefits across the basket (span, exposure, equity, F&O, commodity, currency).
+
+```typescript
+async calculateMultiOrderMargin(
+  request: MultiOrderMarginRequest
+): Promise<MultiOrderMarginResponse>
+```
+
+<Callout type="info">
+  Margin values returned are indicative and valid only for the current trading session. Use `includePosition` / `includeOrder` to factor existing positions and open orders into the hedge calculation.
+</Callout>
+
+#### Example
+
+```typescript
+import {
+  ExchangeSegment,
+  TransactionType,
+  ProductType
+} from 'dhan-ts';
+
+async function checkBasketMargin() {
+  try {
+    const margin = await client.funds.calculateMultiOrderMargin({
+      dhanClientId: 'your-client-id',
+      includePosition: false,
+      includeOrder: false,
+      scripList: [
+        {
+          exchangeSegment: ExchangeSegment.NSE_FNO,
+          transactionType: TransactionType.BUY,
+          productType: ProductType.MARGIN,
+          securityId: '52175',
+          quantity: 50,
+          price: 120.00,
+        },
+        {
+          exchangeSegment: ExchangeSegment.NSE_FNO,
+          transactionType: TransactionType.SELL,
+          productType: ProductType.MARGIN,
+          securityId: '52176',
+          quantity: 50,
+          price: 80.00,
+        },
+      ],
+    });
+
+    console.log('Total Margin (with hedge benefit):', margin.totalMargin);
+    console.log('SPAN Margin:', margin.spanMargin);
+    console.log('Exposure:', margin.exposure);
+    console.log('F&O Margin:', margin.foMargin);
+  } catch (error) {
+    console.error('Error calculating multi-order margin:', error);
+  }
+}
+```
+
 ## TypeScript Types
 
 ### FundLimitResponse
@@ -143,6 +202,42 @@ interface MarginCalculatorResponse {
   insufficientBalance: number;
   brokerage: number;
   leverage: string;
+}
+```
+
+### MultiOrderMarginRequest
+
+```typescript
+interface MultiOrderMarginScrip {
+  exchangeSegment: ExchangeSegment;
+  transactionType: TransactionType;
+  quantity: number;
+  productType: ProductType;
+  securityId: string;
+  price?: number;
+  triggerPrice?: number;
+}
+
+interface MultiOrderMarginRequest {
+  dhanClientId: string;
+  includePosition?: boolean; // factor existing positions into hedge calc
+  includeOrder?: boolean;    // factor open orders into hedge calc
+  scripList: MultiOrderMarginScrip[];
+}
+```
+
+### MultiOrderMarginResponse
+
+```typescript
+interface MultiOrderMarginResponse {
+  clientId?: string;
+  totalMargin?: number;   // overall combined margin (with hedge benefit)
+  spanMargin?: number;
+  exposure?: number;
+  equityMargin?: number;
+  foMargin?: number;
+  commodity?: number;
+  currency?: number;
 }
 ```
 
